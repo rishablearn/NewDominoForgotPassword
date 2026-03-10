@@ -1,0 +1,118 @@
+# =============================================================================
+# HCL Domino Forgot Password - Configuration Template
+# =============================================================================
+# Copy these settings to create Configuration documents in the backend database
+# or use as reference when setting up the application.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# DATABASE PATHS (Required)
+# -----------------------------------------------------------------------------
+
+DATA_DB_PATH=ForgotPasswordData.nsf
+# Path to backend database, relative to Domino data directory
+
+ID_VAULT_SERVER=CN=VaultServer/O=YourOrg
+# Full canonical name of your ID Vault server
+
+HTTP_SERVER=CN=WebServer/O=YourOrg
+# Full canonical name of your HTTP/web server
+
+VAULT_DB_PATH=IBM_ID_VAULT/vault.nsf
+# Path to ID Vault database
+
+NAB_SERVER=CN=MailServer/O=YourOrg
+# Server containing the Domino Directory (names.nsf)
+
+# -----------------------------------------------------------------------------
+# SECURITY SETTINGS (Recommended defaults shown)
+# -----------------------------------------------------------------------------
+
+MAX_FAILED_ATTEMPTS=5
+# Number of failed answer attempts before account lockout (3-10)
+
+LOCKOUT_DURATION_MINUTES=30
+# Minutes until automatic unlock (15-1440)
+
+SESSION_TIMEOUT_MINUTES=15
+# Wizard session timeout (5-60)
+
+MIN_PASSWORD_LENGTH=8
+# Minimum password length (6-20)
+
+REQUIRE_PASSWORD_COMPLEXITY=Yes
+# Enforce uppercase, lowercase, number, special char (Yes/No)
+
+REQUIRE_PASSWORD_HISTORY=No
+# Prevent reuse of recent passwords (Yes/No)
+
+PASSWORD_HISTORY_COUNT=5
+# Number of previous passwords to remember (1-24)
+
+# -----------------------------------------------------------------------------
+# UI CONFIGURATION
+# -----------------------------------------------------------------------------
+
+APP_TITLE=Self-Service Password Reset
+# Application title shown in header
+
+COMPANY_NAME=Your Company Name
+# Organization name shown in footer
+
+SUPPORT_EMAIL=helpdesk@yourcompany.com
+# Help desk email for support requests
+
+SUPPORT_PHONE=1-800-555-1234
+# Help desk phone number
+
+LOGO_URL=/images/logo.svg
+# Path to custom logo (relative to database)
+
+# -----------------------------------------------------------------------------
+# LOGGING & AUDIT
+# -----------------------------------------------------------------------------
+
+ENABLE_AUDIT_LOG=Yes
+# Enable audit logging (Yes/No)
+
+LOG_LEVEL=INFO
+# Log level: DEBUG, INFO, WARN, ERROR
+
+LOG_RETENTION_DAYS=90
+# Days to retain audit logs (30-365)
+
+# -----------------------------------------------------------------------------
+# EMAIL NOTIFICATIONS (Optional)
+# -----------------------------------------------------------------------------
+
+ENABLE_EMAIL_NOTIFICATIONS=No
+# Send email notifications (Yes/No)
+
+SMTP_SERVER=mail.yourcompany.com
+# SMTP server for sending notifications
+
+SMTP_FROM_ADDRESS=noreply@yourcompany.com
+# From address for notification emails
+
+# -----------------------------------------------------------------------------
+# SECURITY QUESTIONS
+# Add one question per line in the SECURITY_QUESTIONS configuration
+# -----------------------------------------------------------------------------
+
+# Default questions (copy to SECURITY_QUESTIONS field):
+# What is your mother's maiden name?
+# What was the name of your first pet?
+# In what city were you born?
+# What is your favorite movie?
+# What was the make of your first car?
+# What is your favorite book?
+# What was your childhood nickname?
+# What street did you grow up on?
+# What is your favorite sports team?
+# What was the name of your elementary school?
+# What is your favorite food?
+# What was your first job?
+
+# =============================================================================
+# END OF CONFIGURATION TEMPLATE
+# =============================================================================

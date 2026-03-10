@@ -1,0 +1,104 @@
+# =============================================================================
+# HCL Domino Forgot Password - ACL Configuration Template
+# =============================================================================
+# Use these settings to configure database Access Control Lists
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# FRONT-END DATABASE (resetpwd.nsf) - ACL Settings
+# -----------------------------------------------------------------------------
+
+# PURPOSE: This database allows anonymous access for password reset
+# and authenticated access for registration/profile updates
+
+[ACL Entry: -Default-]
+Access Level: Reader
+User Type: Unspecified
+Roles: None
+Flags: None
+
+[ACL Entry: Anonymous]
+Access Level: Reader
+User Type: Unspecified
+Roles: None
+Flags: None
+
+[ACL Entry: LocalDomainServers]
+Access Level: Manager
+User Type: Server Group
+Roles: None
+Flags: None
+
+[ACL Entry: OtherDomainServers]
+Access Level: No Access
+User Type: Server Group
+Roles: None
+Flags: None
+
+[ACL Entry: YourSignerID/YourOrg]
+Access Level: Designer
+User Type: Person
+Roles: None
+Flags: None
+
+[ACL Entry: DominoAdmins]
+Access Level: Manager
+User Type: Person Group
+Roles: [Admin]
+Flags: None
+
+# Database Properties:
+# - Maximum Internet name & password: Editor
+# - Allow URL open: Yes
+# - Web access: Use JavaScript when generating pages
+
+# -----------------------------------------------------------------------------
+# BACK-END DATABASE (ForgotPasswordData.nsf) - ACL Settings
+# -----------------------------------------------------------------------------
+
+# PURPOSE: This database stores sensitive data and should NOT allow web access
+
+[ACL Entry: -Default-]
+Access Level: No Access
+User Type: Unspecified
+Roles: None
+Flags: None
+
+[ACL Entry: Anonymous]
+Access Level: No Access
+User Type: Unspecified
+Roles: None
+Flags: None
+
+[ACL Entry: LocalDomainServers]
+Access Level: Manager
+User Type: Server Group
+Roles: None
+Flags: None
+
+[ACL Entry: OtherDomainServers]
+Access Level: No Access
+User Type: Server Group
+Roles: None
+Flags: None
+
+[ACL Entry: YourSignerID/YourOrg]
+Access Level: Manager
+User Type: Person
+Roles: None
+Flags: None
+
+[ACL Entry: DominoAdmins]
+Access Level: Manager
+User Type: Person Group
+Roles: [Admin]
+Flags: None
+
+# Database Properties:
+# - Maximum Internet name & password: No Access
+# - Allow URL open: NO (IMPORTANT!)
+# - Disable background agents: No (agents need to run)
+
+# =============================================================================
+# END OF ACL TEMPLATE
+# =============================================================================
