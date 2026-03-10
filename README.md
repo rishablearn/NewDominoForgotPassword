@@ -69,7 +69,7 @@ This application provides a modern, secure, and user-friendly password reset exp
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/NewDominoForgotPassword.git
+git clone https://github.com/rishablearn/NewDominoForgotPassword.git
 
 # 2. Review the installation guide
 open docs/INSTALLATION.md
@@ -170,8 +170,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙋 Support
 
 - 📖 Check the [Installation Guide](docs/INSTALLATION.md) for setup help
-- 🐛 Open an [Issue](https://github.com/yourusername/NewDominoForgotPassword/issues) for bugs
-- 💬 Start a [Discussion](https://github.com/yourusername/NewDominoForgotPassword/discussions) for questions
+- 🐛 Open an [Issue](https://github.com/rishablearn/NewDominoForgotPassword/issues) for bugs
+- 💬 Start a [Discussion](https://github.com/rishablearn/NewDominoForgotPassword/discussions) for questions
 
 ---
 
