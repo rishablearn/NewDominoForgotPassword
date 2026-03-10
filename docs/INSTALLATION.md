@@ -6,695 +6,601 @@
 2. [Architecture](#architecture)
 3. [Version Compatibility](#version-compatibility)
 4. [Prerequisites](#prerequisites)
-5. [Phase 1: Database Creation](#phase-1-database-creation)
-6. [Phase 2: Security Configuration](#phase-2-security-configuration)
-7. [Phase 3: Application Setup](#phase-3-application-setup)
-8. [Phase 4: Testing & Verification](#phase-4-testing--verification)
-9. [Troubleshooting](#troubleshooting)
-10. [Quick Reference](#quick-reference)
+5. [Phase 1: Create Database](#phase-1-create-database)
+6. [Phase 2: Import Web Content](#phase-2-import-web-content)
+7. [Phase 3: Create Forms & Views](#phase-3-create-forms--views)
+8. [Phase 4: Create Agents](#phase-4-create-agents)
+9. [Phase 5: Security Configuration](#phase-5-security-configuration)
+10. [Phase 6: Application Setup](#phase-6-application-setup)
+11. [Phase 7: Testing](#phase-7-testing)
+12. [Troubleshooting](#troubleshooting)
+13. [Quick Reference](#quick-reference)
 
 ---
 
 ## Overview
 
-This guide provides step-by-step instructions for deploying the HCL Domino Self-Service Password Reset application.
+This guide provides step-by-step instructions for deploying the HCL Domino Self-Service Password Reset application using the **new HTML/JavaScript + Agents architecture**.
 
-**Key Architecture Features:**
-- **Pure HTML/JavaScript UI** - No XPages required, works on all Domino versions
-- **LotusScript Agents** - All backend logic via Domino Agents
-- **Single NSF Database** - Simplified deployment and maintenance
-- **ID Vault Integration** - Reset both HTTP and Notes Client passwords
+### Key Benefits of This Architecture
 
-| Phase | Description | Time Estimate |
-|-------|-------------|---------------|
-| Phase 1 | Database Creation | 15-30 minutes |
-| Phase 2 | Security Configuration | 30-45 minutes |
-| Phase 3 | Application Setup | 15-30 minutes |
-| Phase 4 | Testing & Verification | 30-60 minutes |
+| Feature | Benefit |
+|---------|---------|
+| **Pure HTML/JavaScript UI** | No XPages required - works on ALL Domino versions |
+| **LotusScript Agents** | All backend logic runs server-side via Domino Agents |
+| **Single NSF Database** | Simplified deployment - one database does everything |
+| **ID Vault Integration** | Reset both HTTP and Notes Client passwords |
+| **Modern Responsive UI** | Works on desktop, tablet, and mobile browsers |
 
-**Total estimated time: 1.5 - 3 hours**
+### Installation Timeline
+
+| Phase | Description | Time |
+|-------|-------------|------|
+| Phase 1 | Create Database | 5 min |
+| Phase 2 | Import Web Content | 15 min |
+| Phase 3 | Create Forms & Views | 20 min |
+| Phase 4 | Create Agents | 30 min |
+| Phase 5 | Security Configuration | 20 min |
+| Phase 6 | Application Setup | 15 min |
+| Phase 7 | Testing | 15 min |
+
+**Total: ~2 hours**
 
 ---
 
 ## Architecture
 
-The application uses a clean separation of concerns:
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Browser (HTML/CSS/JavaScript)                              │
-│  - index.html, reset.html, register.html, profile.html      │
-│  - JavaScript calls agents via ?OpenAgent URLs              │
-└─────────────────────────┬───────────────────────────────────┘
-                          │ HTTP/HTTPS
-┌─────────────────────────▼───────────────────────────────────┐
-│  Domino NSF Database (PwdReset.nsf)                         │
-│  ┌─────────────────┐  ┌─────────────────────────────────┐   │
-│  │ Web Content     │  │ LotusScript Agents              │   │
-│  │ (HTML/JS/CSS)   │  │ - CheckAuthentication           │   │
-│  │                 │  │ - LookupProfile                 │   │
-│  │                 │  │ - VerifyAnswers                 │   │
-│  │                 │  │ - ResetPassword                 │   │
-│  └─────────────────┘  └─────────────────────────────────┘   │
-│  ┌─────────────────┐  ┌─────────────────────────────────┐   │
-│  │ Forms           │  │ Views                           │   │
-│  │ - UserProfile   │  │ - vwProfilesByEmail             │   │
-│  │ - AuditLog      │  │ - vwConfiguration               │   │
-│  │ - Configuration │  │ - vwLockedAccounts              │   │
-│  └─────────────────┘  └─────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     USER'S WEB BROWSER                           │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  HTML Pages: index.html, reset.html, register.html       │   │
+│  │  JavaScript: api.js calls agents via ?OpenAgent URLs     │   │
+│  │  CSS: Modern responsive styling                           │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ HTTPS Requests
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              DOMINO DATABASE (PwdReset.nsf)                      │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  WEB CONTENT (File Resources)                            │    │
+│  │  • index.html      • css/styles.css                      │    │
+│  │  • reset.html      • js/api.js, config.js, etc.          │    │
+│  │  • register.html   • images/*.svg                         │    │
+│  │  • profile.html                                           │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  LOTUSSCRIPT AGENTS (Backend API)                        │    │
+│  │  • CheckAuthentication    • VerifyAnswers                │    │
+│  │  • GetSecurityQuestions   • ResetPassword                │    │
+│  │  • LookupProfile          • GetConfiguration             │    │
+│  │  • RegisterProfile        • ClearExpiredLockouts         │    │
+│  │  • UpdateProfile                                          │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────────────────┐  ┌───────────────────────────────┐    │
+│  │  FORMS               │  │  VIEWS                        │    │
+│  │  • UserProfile       │  │  • vwProfilesByEmail          │    │
+│  │  • AuditLog          │  │  • vwLockedAccounts           │    │
+│  │  • Configuration     │  │  • vwConfiguration            │    │
+│  │  • SecurityQuestion  │  │  • vwSecurityQuestions        │    │
+│  └──────────────────────┘  │  • vwAuditLog                 │    │
+│                            └───────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    HCL DOMINO SERVER                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌────────────────────────┐   │
+│  │  ID Vault   │  │  Directory  │  │  HTTP Task             │   │
+│  │  (vault.nsf)│  │  (names.nsf)│  │  (serves web content)  │   │
+│  └─────────────┘  └─────────────┘  └────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Agent Endpoints:**
-| Agent | Purpose | Authentication |
-|-------|---------|----------------|
-| `CheckAuthentication?OpenAgent` | Verify user login status | None |
-| `GetSecurityQuestions?OpenAgent` | Get available questions | None |
-| `LookupProfile?OpenAgent` | Find profile by email | None |
-| `RegisterProfile?OpenAgent` | Create new profile | Required |
-| `UpdateProfile?OpenAgent` | Update existing profile | Required |
-| `VerifyAnswers?OpenAgent` | Verify security answers | None |
-| `ResetPassword?OpenAgent` | Reset HTTP + ID Vault password | Token |
-| `GetConfiguration?OpenAgent` | Get UI configuration | None |
+### Agent API Endpoints
+
+| Agent URL | Method | Purpose |
+|-----------|--------|---------|
+| `CheckAuthentication?OpenAgent` | GET | Check if user is logged in |
+| `GetSecurityQuestions?OpenAgent` | GET | Get list of security questions |
+| `LookupProfile?OpenAgent&email=X` | GET | Find user profile by email |
+| `RegisterProfile?OpenAgent` | POST | Register new security profile |
+| `UpdateProfile?OpenAgent` | POST | Update existing profile |
+| `VerifyAnswers?OpenAgent` | POST | Verify security question answers |
+| `ResetPassword?OpenAgent` | POST | Reset HTTP + ID Vault password |
+| `GetConfiguration?OpenAgent` | GET | Get UI configuration settings |
 
 ---
 
 ## Version Compatibility
 
-This application is compatible with the following HCL Domino versions:
+| Domino Version | Status | Notes |
+|----------------|--------|-------|
+| HCL Domino 14.x | ✅ Full Support | Recommended |
+| HCL Domino 12.x | ✅ Full Support | Recommended |
+| HCL Domino 11.x | ✅ Full Support | |
+| HCL Domino 10.x | ✅ Full Support | Minimum version |
+| IBM Domino 9.0.1+ | ✅ Full Support | No XPages needed! |
 
-| Version | Status | Notes |
-|---------|--------|-------|
-| HCL Domino 14.x | ✅ Fully Supported | Recommended |
-| HCL Domino 12.x | ✅ Fully Supported | Recommended |
-| HCL Domino 11.x | ✅ Fully Supported | |
-| HCL Domino 10.x | ✅ Fully Supported | Minimum version |
-| IBM Domino 9.0.1 FP10+ | ⚠️ Limited Support | XPages may require adjustments |
-| IBM Domino 9.0.1 FP8-9 | ⚠️ Limited Support | Some features may not work |
-| IBM Domino 9.0.0 or earlier | ❌ Not Supported | |
-
-### Version-Specific Notes
-
-**Domino 14.x:**
-- Full support for all modern XPages features
-- Enhanced security with updated TLS support
-- Better performance with optimized HTTP stack
-
-**Domino 12.x:**
-- Full feature support
-- Improved ID Vault integration
-- Native Docker/container support
-
-**Domino 11.x:**
-- Full feature support
-- Ensure latest fix pack is installed
-
-**Domino 10.x:**
-- Minimum supported version
-- Requires ID Vault to be properly configured
-- Install latest fix pack for best results
+**Note:** Because this application uses HTML/JavaScript + Agents (no XPages), it works on **any Domino version** that supports web agents.
 
 ---
 
 ## Prerequisites
 
-### ✅ Checklist
-
-Complete this checklist before starting installation:
-
-#### Server Requirements
-- [ ] HCL Domino Server 10.x or later installed and running
+### Server Requirements
+- [ ] HCL Domino Server 9.0.1 or later
 - [ ] HTTP task enabled and running
-- [ ] Server has sufficient disk space (minimum 100MB free)
-- [ ] Server time is synchronized (NTP recommended)
+- [ ] Domino Designer installed for development
 
-#### ID Vault Requirements
-- [ ] ID Vault is configured and operational
-- [ ] ID Vault database is accessible from the web server
-- [ ] You know the ID Vault server name and database path
+### ID Vault Requirements (for Notes Client password reset)
+- [ ] ID Vault configured and operational
+- [ ] Signer ID has Password Reset Authority in vault
 
-#### Access Requirements
-- [ ] Administrator access to Domino Directory (names.nsf)
-- [ ] Designer access to create/modify databases
-- [ ] A dedicated signer ID with:
-  - [ ] Password Reset Authority in ID Vault
-  - [ ] Rights to run unrestricted agents
-  - [ ] Rights to sign agents to run on behalf of others
-  - [ ] Editor access to Domino Directory
+### Access Requirements
+- [ ] Designer access to create databases
+- [ ] Admin access to server document (for agent permissions)
+- [ ] Editor access to Domino Directory (for HTTP password reset)
 
-#### Network Requirements
-- [ ] HTTPS is configured (recommended for production)
-- [ ] Users can access the Domino web server
-- [ ] No firewall blocking required ports
-
-### Gather Required Information
-
-Before starting, collect the following information:
+### Information to Gather
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ INSTALLATION WORKSHEET                                          │
-├─────────────────────────────────────────────────────────────────┤
-│ Domino Server Name:     _________________________________       │
-│ (e.g., CN=Server01/O=Acme)                                      │
-│                                                                 │
-│ ID Vault Server:        _________________________________       │
-│ (e.g., CN=Vault01/O=Acme)                                       │
-│                                                                 │
-│ ID Vault Database Path: _________________________________       │
-│ (e.g., IBM_ID_VAULT/vault.nsf)                                  │
-│                                                                 │
-│ Signer ID Name:         _________________________________       │
-│ (e.g., CN=AppSigner/O=Acme)                                     │
-│                                                                 │
-│ Admin Group Name:       _________________________________       │
-│ (e.g., DominoAdmins)                                            │
-│                                                                 │
-│ HTTP Server URL:        _________________________________       │
-│ (e.g., https://webmail.acme.com)                                │
-│                                                                 │
-│ Support Email:          _________________________________       │
-│ (e.g., helpdesk@acme.com)                                       │
-│                                                                 │
-│ Support Phone:          _________________________________       │
-│ (e.g., 1-800-555-1234)                                          │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ INSTALLATION WORKSHEET                                      │
+├────────────────────────────────────────────────────────────┤
+│ Domino Server:      ____________________________________   │
+│ ID Vault Server:    ____________________________________   │
+│ ID Vault Path:      ____________________________________   │
+│ Signer ID:          ____________________________________   │
+│ Database Path:      ____________________________________   │
+│ Support Email:      ____________________________________   │
+│ Support Phone:      ____________________________________   │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 1: Database Creation
+## Phase 1: Create Database
 
-### Step 1.1: Download the Application Files
+### Step 1.1: Create New NSF Database
 
-1. Download or clone the repository
-2. Locate the following directories:
-   - `FrontEnd-resetpwd.nsf/` - Front-end design elements
-   - `BackEnd-ForgotPasswordData.nsf/` - Back-end design elements
-
-### Step 1.2: Create the Front-End Database
-
-**Using Domino Administrator:**
-
-1. Open **HCL Notes Administrator**
-2. Connect to your target Domino server
-3. Navigate to **Files** tab
-4. Click **New Database** (or File → Database → New)
-5. Fill in the following:
-
-```
-Server:     [Your Domino Server]
-Title:      Self-Service Password Reset
-File Name:  resetpwd.nsf
-Location:   [Leave as default or specify subdirectory]
-```
-
-6. Click **OK** to create the database
-
-**Alternative - Using Notes Client:**
-
-1. Open **HCL Notes Client**
+1. Open **Domino Administrator** or **Notes Client**
 2. File → Application → New
-3. Select server and enter details as above
+3. Enter:
+   ```
+   Server:     [Your Domino Server]
+   Title:      Self-Service Password Reset
+   File Name:  PwdReset.nsf
+   ```
+4. Click **OK**
 
-### Step 1.3: Create the Back-End Database
+### Step 1.2: Set Database Properties
 
-Repeat the same process to create the back-end database:
+1. Open database properties (File → Application → Properties)
+2. On **Basics** tab:
+   - Title: `Self-Service Password Reset`
+3. On **Design** tab:
+   - ✅ Check "Do not allow URL open" = **UNCHECKED** (allow URL access)
+4. Save and close
 
-```
-Server:     [Your Domino Server]
-Title:      Forgot Password Data
-File Name:  ForgotPasswordData.nsf
-Location:   [Same location as front-end, or separate directory]
-```
+---
 
-### Step 1.4: Import Design Elements
+## Phase 2: Import Web Content
 
-**Using Domino Designer:**
+The HTML, CSS, JavaScript, and image files need to be imported as **File Resources** in Domino Designer.
+
+### Step 2.1: Open Database in Designer
 
 1. Open **Domino Designer**
-2. Open the newly created `resetpwd.nsf`
-3. For each design element type (XPages, Custom Controls, etc.):
-   - Right-click on the design element category
-   - Select **Import** or copy/paste from source files
-4. Import all elements from `FrontEnd-resetpwd.nsf/`:
-   - XPages (4 files)
-   - Custom Controls (1 file)
-   - Script Libraries (6 files)
-   - Style Sheets (1 file)
-   - Client JavaScript (1 file)
-   - Image Resources (4 files)
+2. File → Application → Open
+3. Select `PwdReset.nsf`
 
-5. Open `ForgotPasswordData.nsf`
-6. Import all elements from `BackEnd-ForgotPasswordData.nsf/`:
-   - Forms (4 files)
-   - Views (6 files)
-   - Agents (2 files)
+### Step 2.2: Create File Resources
 
-### Step 1.5: Verify Database Creation
+Navigate to **Resources → Files** in the left panel.
 
-Confirm both databases exist and have the correct design elements:
+#### Import HTML Files
 
-**Front-End (resetpwd.nsf):**
-- [ ] 4 XPages (xpHome, xpRegister, xpResetWizard, xpUpdateProfile)
-- [ ] 1 Custom Control (ccAppLayout)
-- [ ] 6 Script Libraries (.jss files)
-- [ ] 1 Style Sheet (app.css)
-- [ ] 1 Client JavaScript (app.js)
-- [ ] 4 Image Resources (.svg files)
+For each HTML file, right-click → **Import File Resource**:
 
-**Back-End (ForgotPasswordData.nsf):**
-- [ ] 4 Forms (UserProfile, AuditLog, Configuration, SecurityQuestion)
-- [ ] 6 Views (vwProfilesByEmail, vwProfilesByUser, vwLockedAccounts, vwAuditLog, vwConfiguration, vwSecurityQuestions)
-- [ ] 2 Agents (ClearExpiredLockouts, CleanupOldAuditLogs)
+| Source File | Name in Domino |
+|-------------|----------------|
+| `nsf/WebContent/index.html` | `index.html` |
+| `nsf/WebContent/reset.html` | `reset.html` |
+| `nsf/WebContent/register.html` | `register.html` |
+| `nsf/WebContent/profile.html` | `profile.html` |
+
+#### Import CSS Files
+
+| Source File | Name in Domino |
+|-------------|----------------|
+| `nsf/WebContent/css/styles.css` | `styles.css` |
+
+#### Import JavaScript Files
+
+| Source File | Name in Domino |
+|-------------|----------------|
+| `nsf/WebContent/js/config.js` | `config.js` |
+| `nsf/WebContent/js/api.js` | `api.js` |
+| `nsf/WebContent/js/app.js` | `app.js` |
+| `nsf/WebContent/js/reset-wizard.js` | `reset-wizard.js` |
+| `nsf/WebContent/js/register.js` | `register.js` |
+| `nsf/WebContent/js/profile.js` | `profile.js` |
+
+#### Import Image Files
+
+| Source File | Name in Domino |
+|-------------|----------------|
+| `nsf/WebContent/images/logo.svg` | `logo.svg` |
+| `nsf/WebContent/images/key-icon.svg` | `key-icon.svg` |
+| `nsf/WebContent/images/shield-icon.svg` | `shield-icon.svg` |
+| `nsf/WebContent/images/edit-icon.svg` | `edit-icon.svg` |
+
+### Step 2.3: Update File Resource Paths
+
+After importing, you may need to update the HTML files to reference the correct paths. In Domino, file resources are accessed via:
+```
+/PwdReset.nsf/filename.ext
+```
+
+**Update the HTML files** to use these paths for CSS, JS, and images:
+
+```html
+<!-- In each HTML file, update paths like: -->
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="api.js"></script>
+<img src="logo.svg">
+```
+
+### Step 2.4: Set Default Home Page
+
+1. In Designer, go to **Resources → Files**
+2. Right-click on `index.html`
+3. Select **Properties**
+4. On the **Design** tab, check **"Use as default when database is accessed via URL"**
+   - Or alternatively, create a **$$ViewTemplate** or database launch property
 
 ---
 
-## Phase 2: Security Configuration
+## Phase 3: Create Forms & Views
 
-### Step 2.1: Configure Front-End Database ACL
+### Step 3.1: Create Forms
 
-1. Open `resetpwd.nsf` in **Domino Administrator** or **Notes Client**
-2. File → Application → Access Control (or Ctrl+Shift+A)
-3. Configure the following ACL entries:
+In Domino Designer, navigate to **Forms** and create each form:
 
-| Entry | Access Level | User Type | Roles | Delete Docs |
-|-------|--------------|-----------|-------|-------------|
-| -Default- | Reader | Unspecified | None | No |
-| Anonymous | Reader | Unspecified | None | No |
-| LocalDomainServers | Manager | Server Group | None | Yes |
-| [Your Signer ID] | Designer | Person | None | No |
-| [Your Admin Group] | Manager | Person Group | [Admin] | Yes |
+#### Form 1: UserProfile
 
-4. Click **Advanced** tab and configure:
-   - **Maximum Internet name and password:** Editor
-   - **Enforce a consistent ACL:** Yes (recommended)
+1. Right-click Forms → **New Form**
+2. Name: `UserProfile`
+3. Add the following fields:
 
-5. In database properties (File → Application → Properties):
-   - **Web Access:** Check "Use JavaScript when generating pages"
-   - Check **"Allow URL open"**
+| Field Name | Type | Notes |
+|------------|------|-------|
+| UserName | Text | Canonical Domino user name |
+| Email | Text | User email (lowercase) |
+| Question1 | Text | First security question |
+| Question2 | Text | Second security question |
+| Question3 | Text | Third security question |
+| Answer1Hash | Text | Hashed answer 1 |
+| Answer2Hash | Text | Hashed answer 2 |
+| Answer3Hash | Text | Hashed answer 3 |
+| IsLocked | Text | "Yes" or "No" |
+| FailedAttempts | Number | Count of failed attempts |
+| LockoutTime | Date/Time | When account was locked |
+| VerificationToken | Text | Temp token for reset |
+| TokenExpiry | Date/Time | Token expiration |
+| CreatedDate | Date/Time | Profile creation date |
+| ModifiedDate | Date/Time | Last modification date |
+| LastPasswordReset | Date/Time | Last successful reset |
 
-### Step 2.2: Configure Back-End Database ACL
+4. Save and close
 
-1. Open `ForgotPasswordData.nsf`
-2. Configure ACL:
+#### Form 2: AuditLog
 
-| Entry | Access Level | User Type | Roles | Delete Docs |
-|-------|--------------|-----------|-------|-------------|
-| -Default- | No Access | Unspecified | None | No |
-| Anonymous | No Access | Unspecified | None | No |
-| LocalDomainServers | Manager | Server Group | None | Yes |
-| [Your Signer ID] | Manager | Person | None | Yes |
-| [Your Admin Group] | Manager | Person Group | [Admin] | Yes |
+| Field Name | Type | Notes |
+|------------|------|-------|
+| Timestamp | Date/Time | Event time |
+| UserName | Text | User involved |
+| Email | Text | User email |
+| EventType | Text | Event category |
+| Details | Text | Event description |
+| IPAddress | Text | Client IP (optional) |
 
-3. **Advanced** tab:
-   - **Maximum Internet name and password:** No Access
-   
-4. In database properties:
-   - **UNCHECK** "Allow URL open" (IMPORTANT!)
+#### Form 3: Configuration
 
-### Step 2.3: Configure Server Document
+| Field Name | Type | Notes |
+|------------|------|-------|
+| Key | Text | Configuration key |
+| Value | Text | Configuration value |
+| Description | Text | Setting description |
+| Category | Text | Security, UI, etc. |
 
-1. Open **Domino Directory** (names.nsf)
-2. Navigate to **Configuration** → **Servers** → **All Server Documents**
-3. Open your server document and click **Edit Server**
-4. Go to **Security** tab
+#### Form 4: SecurityQuestion
 
-5. In **Security Settings** section, add your signer ID to:
+| Field Name | Type | Notes |
+|------------|------|-------|
+| Question | Text | Question text |
+| Category | Text | Personal, Work, etc. |
+| Active | Text | "Yes" or "No" |
+| SortOrder | Number | Display order |
 
-**"Run unrestricted methods and operations":**
-```
-[Add your signer ID, e.g.: CN=AppSigner/O=Acme]
-```
+### Step 3.2: Create Views
 
-**"Sign agents to run on behalf of someone else":**
-```
-[Add your signer ID, e.g.: CN=AppSigner/O=Acme]
-```
+Navigate to **Views** and create each view:
 
-**"Sign agents to run on behalf of the invoker of the agent":**
-```
-[Add your signer ID, e.g.: CN=AppSigner/O=Acme]
-```
+#### View 1: vwProfilesByEmail
 
-6. Click **Save & Close**
+- **Selection Formula:** `SELECT Form = "UserProfile"`
+- **Column 1:** Email (sorted ascending) - Formula: `@LowerCase(Email)`
+- **Column 2:** UserName
+- **Column 3:** IsLocked
+- **Column 4:** CreatedDate
 
-### Step 2.4: Configure ID Vault Permissions
+#### View 2: vwLockedAccounts
 
-1. Open the **ID Vault database** (usually `IBM_ID_VAULT/vault.nsf`)
-2. Navigate to the **Configuration** document
-3. In the **Password Reset** section:
-   - Add your signer ID to **"Password Reset Authority"**
-   
-4. Verify the vault ACL includes your signer ID with:
-   - Minimum **Editor** access
-   - **[PasswordReset]** role assigned
+- **Selection Formula:** `SELECT Form = "UserProfile" & IsLocked = "Yes"`
+- **Column 1:** LockoutTime (sorted ascending)
+- **Column 2:** Email
+- **Column 3:** UserName
+- **Column 4:** FailedAttempts
 
-### Step 2.5: Sign the Databases
+#### View 3: vwConfiguration
 
-**Using Domino Administrator:**
+- **Selection Formula:** `SELECT Form = "Configuration"`
+- **Column 1:** Key (sorted ascending)
+- **Column 2:** Value
+- **Column 3:** Category
+- **Column 4:** Description
 
-1. Select `resetpwd.nsf`
-2. Right-click → **Sign...**
-3. Select your authorized signer ID
-4. Choose **"All design documents"**
-5. Click **Sign**
-6. Repeat for `ForgotPasswordData.nsf`
+#### View 4: vwSecurityQuestions
 
-**Using Server Console:**
+- **Selection Formula:** `SELECT Form = "SecurityQuestion" & Active = "Yes"`
+- **Column 1:** SortOrder (sorted ascending, hidden)
+- **Column 2:** Question
+- **Column 3:** Category
 
-```
-load sign resetpwd.nsf
-load sign ForgotPasswordData.nsf
-```
+#### View 5: vwAuditLog
 
-**Verify signing:**
-```
-show directory resetpwd.nsf
-```
+- **Selection Formula:** `SELECT Form = "AuditLog"`
+- **Column 1:** Timestamp (sorted descending)
+- **Column 2:** EventType
+- **Column 3:** UserName
+- **Column 4:** Email
+- **Column 5:** Details
 
 ---
 
-## Phase 3: Application Setup
+## Phase 4: Create Agents
 
-### Step 3.1: Create Configuration Documents
+Navigate to **Code → Agents** in Domino Designer.
 
-Open `ForgotPasswordData.nsf` in Notes Client and create configuration documents:
+### Step 4.1: Create Each Agent
 
-**Method A: Using Notes Client Forms**
+For each agent, create a new **LotusScript** agent:
 
-1. Create → Configuration (if form exists)
-2. Enter each configuration setting
+1. Right-click Agents → **New Agent**
+2. Set Name (e.g., `CheckAuthentication`)
+3. Set Runtime: **On event → Agent list selection**
+4. Set Target: **None**
+5. **Important:** Check **"Allow user activation"** and **"Run as web user"**
 
-**Method B: Manual Document Creation**
+Copy the LotusScript code from the corresponding `.lss` file in `nsf/Agents/`.
 
-Create documents with Form = "Configuration" and the following fields:
+### Agent List
 
-#### Required Configuration (Create These First)
+| Agent Name | Source File | Purpose |
+|------------|-------------|---------|
+| CheckAuthentication | `CheckAuthentication.lss` | Verify user login |
+| GetSecurityQuestions | `GetSecurityQuestions.lss` | List questions |
+| LookupProfile | `LookupProfile.lss` | Find profile by email |
+| RegisterProfile | `RegisterProfile.lss` | Create new profile |
+| UpdateProfile | `UpdateProfile.lss` | Update profile |
+| VerifyAnswers | `VerifyAnswers.lss` | Verify answers |
+| ResetPassword | `ResetPassword.lss` | Reset passwords |
+| GetConfiguration | `GetConfiguration.lss` | Get UI config |
+| ClearExpiredLockouts | `ClearExpiredLockouts.lss` | Scheduled unlock |
 
-| Document | Key | Value | Description |
-|----------|-----|-------|-------------|
-| 1 | DATA_DB_PATH | `ForgotPasswordData.nsf` | Backend database path |
-| 2 | ID_VAULT_SERVER | `CN=YourVault/O=YourOrg` | ID Vault server name |
-| 3 | HTTP_SERVER | `CN=YourWeb/O=YourOrg` | HTTP server name |
-| 4 | VAULT_DB_PATH | `IBM_ID_VAULT/vault.nsf` | ID Vault database path |
+### Step 4.2: Configure Web Agents
 
-#### Security Configuration
+For all agents EXCEPT `ClearExpiredLockouts`:
 
-| Document | Key | Value | Description |
-|----------|-----|-------|-------------|
-| 5 | MAX_FAILED_ATTEMPTS | `5` | Lockout threshold |
-| 6 | LOCKOUT_DURATION_MINUTES | `30` | Auto-unlock time |
-| 7 | SESSION_TIMEOUT_MINUTES | `15` | Wizard timeout |
-| 8 | MIN_PASSWORD_LENGTH | `8` | Minimum password length |
+1. Open agent properties
+2. Set **Trigger:** "On event" → "Agent list selection"
+3. Check **"Allow user activation"**
+4. Set **"Run as web user"** or appropriate option
 
-#### UI Configuration
+### Step 4.3: Configure Scheduled Agent
 
-| Document | Key | Value | Description |
-|----------|-----|-------|-------------|
-| 9 | APP_TITLE | `Password Reset Portal` | Application title |
-| 10 | COMPANY_NAME | `Your Company` | Organization name |
-| 11 | SUPPORT_EMAIL | `helpdesk@company.com` | Support email |
-| 12 | SUPPORT_PHONE | `1-800-555-1234` | Support phone |
+For `ClearExpiredLockouts`:
 
-### Step 3.2: Create Security Questions
+1. Open agent properties
+2. Set **Trigger:** "On schedule" → "More than once a day"
+3. Set interval: Every 15 minutes
+4. Check **"Enabled"**
 
-Create a document for each security question:
+---
 
-| Form | Question | Category | Active |
-|------|----------|----------|--------|
-| SecurityQuestion | What is your mother's maiden name? | Personal | Yes |
-| SecurityQuestion | What was the name of your first pet? | Personal | Yes |
-| SecurityQuestion | In what city were you born? | Personal | Yes |
-| SecurityQuestion | What is your favorite movie? | Entertainment | Yes |
-| SecurityQuestion | What was the make of your first car? | Personal | Yes |
-| SecurityQuestion | What is your favorite book? | Entertainment | Yes |
-| SecurityQuestion | What was your childhood nickname? | Personal | Yes |
-| SecurityQuestion | What street did you grow up on? | Personal | Yes |
-| SecurityQuestion | What is your favorite sports team? | Entertainment | Yes |
-| SecurityQuestion | What was the name of your elementary school? | Education | Yes |
-| SecurityQuestion | What is your favorite food? | Personal | Yes |
-| SecurityQuestion | What was your first job? | Work | Yes |
+## Phase 5: Security Configuration
 
-### Step 3.3: Enable Scheduled Agents
+### Step 5.1: Configure Database ACL
 
-**Agent 1: ClearExpiredLockouts**
+Open database ACL (File → Application → Access Control):
 
-1. Open `ForgotPasswordData.nsf` in **Domino Designer**
-2. Navigate to **Code** → **Agents**
-3. Open **ClearExpiredLockouts** agent
-4. Click **Agent Properties** (or right-click → Properties)
-5. Configure:
-   - **Runtime:** On schedule
-   - **Run:** More than once a day
-   - **Schedule:** Every 15 minutes
-   - **Start time:** 12:00 AM
-   - **End time:** 11:59 PM
-6. Check **"Enabled"**
-7. Save and close
-8. Sign the agent with your signer ID
+| Entry | Access | User Type | Notes |
+|-------|--------|-----------|-------|
+| -Default- | Reader | Unspecified | Anonymous web access |
+| Anonymous | Reader | Unspecified | Unauthenticated users |
+| LocalDomainServers | Manager | Server Group | Server access |
+| [Your Signer ID] | Designer | Person | Sign agents |
+| [Admin Group] | Manager | Person Group | Full admin |
 
-**Agent 2: CleanupOldAuditLogs**
+**Advanced Tab:**
+- Maximum Internet name and password: **Editor**
 
-1. Open **CleanupOldAuditLogs** agent
-2. Configure:
-   - **Runtime:** On schedule
-   - **Run:** Daily
-   - **Schedule:** 2:00 AM
-3. Check **"Enabled"**
-4. Save and sign
+### Step 5.2: Configure Server Document
 
-**Verify agents are scheduled:**
+1. Open Domino Directory (names.nsf)
+2. Edit your server document → **Security** tab
+3. Add your signer ID to:
+   - "Run unrestricted methods and operations"
+   - "Sign agents to run on behalf of someone else"
+   - "Sign agents to run on behalf of the invoker"
+
+### Step 5.3: Configure ID Vault (Optional)
+
+For Notes Client password reset:
+
+1. Open ID Vault database
+2. Add signer ID to **Password Reset Authority**
+3. Ensure signer has **[PasswordReset]** role
+
+### Step 5.4: Sign the Database
+
+```
+load sign PwdReset.nsf
+```
+
+Or use Domino Administrator to sign all design elements.
+
+---
+
+## Phase 6: Application Setup
+
+### Step 6.1: Create Configuration Documents
+
+Open the database and create Configuration documents:
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| APP_TITLE | Self-Service Password Reset | Application title |
+| COMPANY_NAME | Your Company | Organization name |
+| SUPPORT_EMAIL | helpdesk@company.com | Support email |
+| SUPPORT_PHONE | 1-800-555-1234 | Support phone |
+| MAX_FAILED_ATTEMPTS | 5 | Lockout threshold |
+| LOCKOUT_DURATION_MINUTES | 30 | Auto-unlock time |
+| SESSION_TIMEOUT_MINUTES | 15 | Wizard timeout |
+| ID_VAULT_SERVER | CN=Vault/O=Org | ID Vault server |
+| VAULT_DB_PATH | IBM_ID_VAULT/vault.nsf | Vault path |
+
+### Step 6.2: Create Security Questions
+
+Create SecurityQuestion documents:
+
+1. What is your mother's maiden name?
+2. What was the name of your first pet?
+3. In what city were you born?
+4. What is your favorite movie?
+5. What was the make of your first car?
+6. What is your favorite book?
+7. What was your childhood nickname?
+8. What street did you grow up on?
+9. What is your favorite sports team?
+10. What was the name of your elementary school?
+11. What is your favorite food?
+12. What was your first job?
+
+### Step 6.3: Enable Scheduled Agents
+
+Verify the scheduled agent is enabled:
 ```
 tell amgr schedule
 ```
 
-### Step 3.4: Configure HTTP Settings (If Needed)
-
-Add to `notes.ini` if not already present:
-
-```ini
-HTTPEnableMethods=GET,POST,PUT,DELETE
-XPagesPreload=1
-XPagesPreloadDB=resetpwd.nsf
-```
-
-**For Domino 12.x and later:**
-```ini
-HTTPAllowDecodedUrlPercent=1
-```
-
-Restart HTTP task:
-```
-tell http restart
-```
-
 ---
 
-## Phase 4: Testing & Verification
+## Phase 7: Testing
 
-### Step 4.1: Basic Connectivity Test
+### Step 7.1: Access the Application
 
-1. Open a web browser
-2. Navigate to: `https://[your-server]/resetpwd.nsf`
-3. Verify:
-   - [ ] Home page loads without errors
-   - [ ] Logo and styling appear correctly
-   - [ ] Navigation links work
-   - [ ] No JavaScript errors in browser console
+Open browser and navigate to:
+```
+https://[your-server]/PwdReset.nsf
+```
 
-### Step 4.2: Registration Test
+### Step 7.2: Test Checklist
 
-1. Log in with a test user account
-2. Click **"First Time Setup"**
-3. Verify:
-   - [ ] Page redirects properly if already registered
-   - [ ] Security questions dropdown populates
-   - [ ] Cannot select the same question twice
-   - [ ] Answers are required
-   - [ ] Success message appears after registration
+- [ ] Home page loads correctly
+- [ ] All navigation links work
+- [ ] Login redirects to register page for authenticated users
+- [ ] Security questions appear in dropdowns
+- [ ] Registration saves successfully
+- [ ] Password reset wizard completes all steps
+- [ ] Account lockout triggers after failed attempts
+- [ ] Audit log records events
 
-### Step 4.3: Password Reset Test
+### Step 7.3: Test Password Reset Flow
 
-1. Log out (or use incognito/private browsing)
-2. Click **"Forgot Password?"**
-3. Step 1 - Enter test user's email
-4. Step 2 - Answer security questions correctly
-5. Step 3 - Enter a new password meeting complexity requirements
-6. Step 4 - Verify success confirmation
-7. Test:
-   - [ ] HTTP password was reset (try web login)
-   - [ ] ID Vault password was reset (if applicable)
-
-### Step 4.4: Security Tests
-
-**Lockout Test:**
-1. Enter correct email
-2. Enter wrong answers 5 times
-3. Verify account lockout message appears
-4. Wait for lockout duration or trigger agent
-5. Verify account unlocks
-
-**Session Timeout Test:**
-1. Start password reset
-2. Wait for session timeout (default 15 minutes)
-3. Verify session expires with appropriate message
-
-### Step 4.5: Verify Audit Logging
-
-1. Open `ForgotPasswordData.nsf`
-2. Navigate to **AuditLog** view
-3. Verify events are logged:
-   - [ ] Registration events
-   - [ ] Password reset attempts
-   - [ ] Lockout events
-   - [ ] Unlock events
+1. Register a test user with security questions
+2. Log out
+3. Click "Forgot Password"
+4. Enter test user email
+5. Answer security questions correctly
+6. Set new password
+7. Verify login with new password
 
 ---
 
 ## Troubleshooting
 
-### Common Issues and Solutions
+### Agent Not Running
 
-#### Issue: "HTTP Error 500 - Internal Server Error"
+**Error:** "Agent not authorized"
 
-**Causes:**
-- XPages runtime error
-- Missing script library
-- Configuration issue
+**Solution:**
+1. Check signer ID in server document
+2. Re-sign all agents
+3. Verify ACL permissions
 
-**Solutions:**
-1. Check Domino console for error messages
-2. Verify all script libraries are imported
-3. Check XPages are properly signed
-4. Enable XPages debug logging:
-   ```
-   set config XPagesDebug=1
-   tell http restart
-   ```
+### HTTP 500 Error
 
-#### Issue: "Agent not authorized to run"
+**Cause:** Agent error or missing resource
 
-**Causes:**
-- Signer not in server document
-- Agent not properly signed
+**Solution:**
+1. Check Domino console for errors
+2. Verify all file resources imported
+3. Check agent code for syntax errors
 
-**Solutions:**
-1. Verify signer ID in server document security settings
-2. Re-sign all agents with correct ID
-3. Check agent log:
-   ```
-   tell amgr status
-   ```
+### Profile Not Found
 
-#### Issue: "Cannot reset ID Vault password"
+**Cause:** View not returning results
 
-**Causes:**
-- Signer lacks Password Reset Authority
-- Wrong vault server name
-- Vault database path incorrect
+**Solution:**
+1. Verify vwProfilesByEmail view exists
+2. Check selection formula
+3. Ensure email column is sorted
 
-**Solutions:**
-1. Verify signer in vault configuration
-2. Check ID_VAULT_SERVER configuration
-3. Verify VAULT_DB_PATH is correct
-4. Check vault is accessible:
-   ```
-   show server [vault-server-name]
-   ```
+### Password Reset Fails
 
-#### Issue: "Backend database not found"
+**Cause:** Insufficient permissions
 
-**Causes:**
-- Wrong database path in configuration
-- Database not on server
-
-**Solutions:**
-1. Verify DATA_DB_PATH configuration
-2. Use forward slashes in path
-3. Verify database exists:
-   ```
-   show directory ForgotPasswordData.nsf
-   ```
-
-#### Issue: "Anonymous access denied"
-
-**Causes:**
-- ACL not configured correctly
-- Maximum internet access too restrictive
-
-**Solutions:**
-1. Verify Anonymous entry in ACL has Reader access
-2. Check -Default- has Reader access
-3. Verify "Maximum internet name and password" is Editor or higher
-
-#### Issue: "Questions not appearing in dropdown"
-
-**Causes:**
-- No SecurityQuestion documents created
-- Questions not marked as Active
-
-**Solutions:**
-1. Create SecurityQuestion documents in backend database
-2. Ensure Active field = "Yes"
-3. Verify vwSecurityQuestions view exists
-
-### Debug Commands
-
-**Check HTTP status:**
-```
-show tasks http
-tell http show config
-```
-
-**Check agent status:**
-```
-tell amgr status
-tell amgr schedule
-show agent "ClearExpiredLockouts" in ForgotPasswordData.nsf
-```
-
-**Check database info:**
-```
-show directory resetpwd.nsf
-show database resetpwd.nsf
-```
-
-**Enable detailed logging:**
-```
-set config debug_xpages=1
-set config console_log_level=2
-tell http restart
-```
+**Solution:**
+1. Verify signer has Editor access to names.nsf
+2. Check ID Vault permissions
+3. Review ResetPassword agent logs
 
 ---
 
 ## Quick Reference
 
-### Key Paths
+### URLs
 
-| Item | Default Path |
-|------|--------------|
-| Front-End Database | resetpwd.nsf |
-| Back-End Database | ForgotPasswordData.nsf |
-| ID Vault | IBM_ID_VAULT/vault.nsf |
-| Application URL | https://[server]/resetpwd.nsf |
-
-### Configuration Keys
-
-| Key | Purpose | Default |
-|-----|---------|---------|
-| DATA_DB_PATH | Backend database | ForgotPasswordData.nsf |
-| ID_VAULT_SERVER | Vault server name | (required) |
-| MAX_FAILED_ATTEMPTS | Lockout threshold | 5 |
-| LOCKOUT_DURATION_MINUTES | Auto-unlock time | 30 |
-| SESSION_TIMEOUT_MINUTES | Wizard timeout | 15 |
+| URL | Purpose |
+|-----|---------|
+| `/PwdReset.nsf` | Home page |
+| `/PwdReset.nsf/reset.html` | Password reset |
+| `/PwdReset.nsf/register.html` | Registration |
+| `/PwdReset.nsf/profile.html` | Update profile |
 
 ### Console Commands
 
 ```bash
-# Sign databases
-load sign resetpwd.nsf
+# Sign database
+load sign PwdReset.nsf
 
 # Restart HTTP
 tell http restart
@@ -702,29 +608,33 @@ tell http restart
 # Check agents
 tell amgr schedule
 
-# Debug mode
-set config XPagesDebug=1
+# Run agent manually
+tell amgr run "ClearExpiredLockouts" in "PwdReset.nsf"
 ```
+
+### Configuration Keys
+
+| Key | Default |
+|-----|---------|
+| MAX_FAILED_ATTEMPTS | 5 |
+| LOCKOUT_DURATION_MINUTES | 30 |
+| SESSION_TIMEOUT_MINUTES | 15 |
+| MIN_PASSWORD_LENGTH | 8 |
 
 ---
 
 ## Next Steps
 
-After successful installation:
-
-1. **[Configure custom branding](CUSTOMIZATION.md)** - Add your logo and colors
+1. **[Configure branding](CUSTOMIZATION.md)** - Add your logo and colors
 2. **[Review security settings](CONFIGURATION.md)** - Adjust for your environment
-3. **[Set up monitoring](CONFIGURATION.md#logging)** - Enable audit logging
-4. **Communicate to users** - Send instructions for registration
-5. **Train help desk** - Provide troubleshooting guide
+3. **Communicate to users** - Send registration instructions
+4. **Monitor audit logs** - Review for issues
 
 ---
 
 ## Support
 
-For issues not covered in this guide:
-
-1. Check the [Troubleshooting](#troubleshooting) section
+For issues:
+1. Check [Troubleshooting](#troubleshooting) section
 2. Review Domino console logs
-3. Open an issue on GitHub
-4. Contact your Domino administrator
+3. Open GitHub issue

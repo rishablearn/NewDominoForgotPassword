@@ -1,250 +1,282 @@
 # Configuration Guide
 
-## Configuration Keywords Reference
+This guide explains how to configure the Self-Service Password Reset application.
 
-All configuration is managed through keyword documents in the Front-End database (resetpwd.nsf).
+## Table of Contents
 
-### Database Paths
+1. [Overview](#overview)
+2. [Configuration Documents](#configuration-documents)
+3. [Security Settings](#security-settings)
+4. [UI Configuration](#ui-configuration)
+5. [ID Vault Settings](#id-vault-settings)
+6. [Password Requirements](#password-requirements)
+7. [Scheduled Agents](#scheduled-agents)
+8. [Customization](#customization)
 
-| Keyword | Description | Example |
-|---------|-------------|---------|
-| DATA_DB_PATH | Path to backend database | `ForgotPasswordData.nsf` |
-| ID_VAULT_SERVER | ID Vault server name | `CN=Vault01/O=Acme` |
-| HTTP_SERVER | HTTP server name | `CN=Web01/O=Acme` |
-| VAULT_DB_PATH | ID Vault database path | `IBM_ID_VAULT/vault.nsf` |
+---
 
-### Security Settings
+## Overview
 
-| Keyword | Description | Default | Range |
-|---------|-------------|---------|-------|
-| MAX_FAILED_ATTEMPTS | Lockout threshold | 5 | 3-10 |
-| LOCKOUT_DURATION_MINUTES | Auto-unlock time | 30 | 15-1440 |
-| BCRYPT_COST_FACTOR | Hash complexity | 12 | 10-14 |
-| SESSION_TIMEOUT_MINUTES | Wizard timeout | 15 | 5-60 |
-| MIN_PASSWORD_LENGTH | Minimum password length | 8 | 6-20 |
-| REQUIRE_PASSWORD_COMPLEXITY | Enforce complexity | Yes | Yes/No |
+Configuration is managed through **Configuration documents** stored in the NSF database. These documents use a simple key-value structure and are accessed by the LotusScript agents via the `vwConfiguration` view.
 
-### Password Complexity Rules
+### How Configuration Works
 
-When REQUIRE_PASSWORD_COMPLEXITY is enabled:
-- Minimum length as configured
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one number
-- At least one special character (!@#$%^&*)
-- Cannot contain username
-- Cannot match previous 5 passwords (if history enabled)
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Configuration Document                                      │
+│  ┌─────────────┬──────────────────────────────────────────┐ │
+│  │ Key         │ MAX_FAILED_ATTEMPTS                      │ │
+│  │ Value       │ 5                                        │ │
+│  │ Category    │ Security                                 │ │
+│  │ Description │ Number of failed attempts before lockout │ │
+│  └─────────────┴──────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### UI Configuration
+### Creating Configuration Documents
 
-| Keyword | Description | Example |
-|---------|-------------|---------|
-| APP_TITLE | Application title | `Password Reset Portal` |
-| COMPANY_NAME | Organization name | `Acme Corporation` |
+1. Open the database in Notes Client
+2. Create a new document using the **Configuration** form
+3. Enter the Key, Value, Category, and Description
+4. Save and close
+
+---
+
+## Configuration Documents
+
+### Required Settings
+
+Create these configuration documents first:
+
+| Key | Value | Category | Description |
+|-----|-------|----------|-------------|
+| ID_VAULT_SERVER | `CN=Vault/O=Org` | Server | ID Vault server canonical name |
+| VAULT_DB_PATH | `IBM_ID_VAULT/vault.nsf` | Server | Path to ID Vault database |
+
+### Recommended Settings
+
+| Key | Value | Category | Description |
+|-----|-------|----------|-------------|
+| APP_TITLE | `Self-Service Password Reset` | UI | Application title |
+| COMPANY_NAME | `Your Company` | UI | Organization name |
+| SUPPORT_EMAIL | `helpdesk@company.com` | UI | Support email address |
+| SUPPORT_PHONE | `1-800-555-1234` | UI | Support phone number |
+| LOGO_URL | `logo.svg` | UI | Path to logo image |
+
+---
+
+## Security Settings
+
+### Lockout Configuration
+
+| Key | Default | Range | Description |
+|-----|---------|-------|-------------|
+| MAX_FAILED_ATTEMPTS | 5 | 3-10 | Failed attempts before lockout |
+| LOCKOUT_DURATION_MINUTES | 30 | 15-1440 | Minutes until auto-unlock |
+
+**Example:**
+```
+Key:         MAX_FAILED_ATTEMPTS
+Value:       5
+Category:    Security
+Description: Number of failed verification attempts before account lockout
+```
+
+### Session Settings
+
+| Key | Default | Range | Description |
+|-----|---------|-------|-------------|
+| SESSION_TIMEOUT_MINUTES | 15 | 5-60 | Wizard session timeout |
+
+### Answer Hashing
+
+Answers are hashed using Domino's `@Password` function for secure storage. The agents never store plaintext answers.
+
+---
+
+## UI Configuration
+
+### Application Branding
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| APP_TITLE | Page title and header | `Password Reset Portal` |
+| COMPANY_NAME | Footer company name | `Acme Corporation` |
+| LOGO_URL | Logo image path | `logo.svg` |
+
+### Support Information
+
+| Key | Description | Example |
+|-----|-------------|---------|
 | SUPPORT_EMAIL | Help desk email | `helpdesk@acme.com` |
 | SUPPORT_PHONE | Help desk phone | `1-800-555-1234` |
-| LOGO_URL | Custom logo path | `logo.png` |
 
-## Logging Configuration
+### Customizing the UI
 
-### Enable Audit Logging
+The UI can be customized by editing the file resources:
 
-Create keyword document:
+1. **styles.css** - Colors, fonts, layout
+2. **logo.svg** - Company logo
+3. **config.js** - Default messages and settings
+
+---
+
+## ID Vault Settings
+
+For Notes Client password reset functionality:
+
+| Key | Description | Required |
+|-----|-------------|----------|
+| ID_VAULT_SERVER | Vault server canonical name | Yes |
+| VAULT_DB_PATH | Path to vault.nsf | Yes |
+
+**Example:**
 ```
-Keyword: ENABLE_AUDIT_LOG
-Value: Yes
+Key:         ID_VAULT_SERVER
+Value:       CN=VaultServer/O=Acme
+Category:    Server
+Description: ID Vault server for Notes Client password reset
 ```
 
-### Log Levels
+### ID Vault Requirements
 
+1. Signer ID must have **Password Reset Authority** in vault
+2. Signer must have **[PasswordReset]** role in vault ACL
+3. Vault must be accessible from the Domino server
+
+---
+
+## Password Requirements
+
+Password complexity is enforced by the JavaScript client-side and can be configured in `config.js`:
+
+```javascript
+passwordRequirements: {
+    minLength: 8,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireNumber: true,
+    requireSpecial: true
+}
 ```
-Keyword: LOG_LEVEL
-Value: INFO
-Options: DEBUG, INFO, WARN, ERROR
+
+### Server-Side Configuration
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| MIN_PASSWORD_LENGTH | 8 | Minimum password length |
+
+---
+
+## Scheduled Agents
+
+### ClearExpiredLockouts
+
+**Purpose:** Automatically unlocks accounts after lockout duration expires.
+
+**Configuration:**
+- **Schedule:** Every 15 minutes
+- **Trigger:** On schedule → More than once a day
+
+**Behavior:**
+1. Queries `vwLockedAccounts` view
+2. Checks each locked profile's `LockoutTime`
+3. If lockout duration has passed, sets `IsLocked = "No"`
+4. Logs unlock event to audit log
+
+### Enabling/Disabling Agents
+
+**Via Domino Administrator:**
+1. Open database
+2. Navigate to Agents
+3. Right-click agent → Enable/Disable
+
+**Via Console:**
 ```
+tell amgr schedule
+tell amgr run "ClearExpiredLockouts" in "PwdReset.nsf"
+```
+
+---
+
+## Customization
+
+### Changing Colors and Styling
+
+Edit `styles.css` to customize:
+
+```css
+:root {
+    --primary-color: #0066cc;      /* Main brand color */
+    --primary-dark: #004080;       /* Darker shade */
+    --success-color: #28a745;      /* Success messages */
+    --error-color: #dc3545;        /* Error messages */
+    --background-color: #f8f9fa;   /* Page background */
+}
+```
+
+### Changing Security Questions
+
+Create or modify **SecurityQuestion** documents:
+
+| Field | Value |
+|-------|-------|
+| Question | The question text |
+| Category | Personal, Work, Education, Entertainment |
+| Active | Yes or No |
+| SortOrder | Display order (1, 2, 3...) |
+
+### Adding New Questions
+
+1. Open database in Notes Client
+2. Create → SecurityQuestion
+3. Fill in fields
+4. Save
+
+### Deactivating Questions
+
+Set `Active = "No"` to hide a question without deleting it.
+
+---
+
+## Default Values
+
+If a configuration key is not found, agents use these defaults:
+
+| Key | Default |
+|-----|---------|
+| APP_TITLE | Self-Service Password Reset |
+| COMPANY_NAME | Your Company |
+| SUPPORT_EMAIL | helpdesk@company.com |
+| SUPPORT_PHONE | 1-800-555-1234 |
+| LOGO_URL | images/logo.svg |
+| MAX_FAILED_ATTEMPTS | 5 |
+| LOCKOUT_DURATION_MINUTES | 30 |
+| SESSION_TIMEOUT_MINUTES | 15 |
+| MIN_PASSWORD_LENGTH | 8 |
+
+---
+
+## Audit Logging
+
+All security events are logged to **AuditLog** documents:
+
+| Event Type | Description |
+|------------|-------------|
+| REGISTRATION | New profile registered |
+| PROFILE_UPDATE | Profile questions updated |
+| VERIFY_SUCCESS | Security answers verified |
+| VERIFY_FAILED | Incorrect answers provided |
+| PASSWORD_RESET | Password successfully reset |
+| ACCOUNT_LOCKED | Account locked after failed attempts |
+| AUTO_UNLOCK | Account automatically unlocked |
+
+### Viewing Audit Logs
+
+1. Open database
+2. Navigate to `vwAuditLog` view
+3. Logs are sorted by timestamp (newest first)
 
 ### Log Retention
 
-```
-Keyword: LOG_RETENTION_DAYS
-Value: 90
-```
-
-### Logged Events
-
-When enabled, the following events are logged:
-
-| Event | Level | Details |
-|-------|-------|---------|
-| Registration | INFO | User, timestamp, questions selected |
-| Reset Attempt | INFO | User, timestamp, success/failure |
-| Lockout | WARN | User, timestamp, attempt count |
-| Unlock | INFO | User, timestamp, method (auto/manual) |
-| Config Change | INFO | Admin, setting, old/new value |
-
-## Email Notifications
-
-### Enable Email Notifications
-
-```
-Keyword: ENABLE_EMAIL_NOTIFICATIONS
-Value: Yes
-```
-
-### Notification Templates
-
-**Password Reset Success:**
-```
-Keyword: EMAIL_RESET_SUCCESS
-Value: Your password has been successfully reset. If you did not request this change, contact IT immediately.
-```
-
-**Account Locked:**
-```
-Keyword: EMAIL_ACCOUNT_LOCKED
-Value: Your password reset account has been locked due to multiple failed attempts. It will automatically unlock in {LOCKOUT_DURATION} minutes.
-```
-
-### SMTP Configuration
-
-```
-Keyword: SMTP_SERVER
-Value: mail.acme.com
-
-Keyword: SMTP_FROM_ADDRESS  
-Value: noreply@acme.com
-```
-
-## Security Hardening
-
-### Recommended Security Settings
-
-1. **Increase bcrypt cost factor** for high-security environments:
-   ```
-   BCRYPT_COST_FACTOR: 14
-   ```
-
-2. **Reduce lockout threshold** for sensitive data:
-   ```
-   MAX_FAILED_ATTEMPTS: 3
-   ```
-
-3. **Enable all logging**:
-   ```
-   ENABLE_AUDIT_LOG: Yes
-   LOG_LEVEL: DEBUG
-   ```
-
-4. **Shorter session timeout**:
-   ```
-   SESSION_TIMEOUT_MINUTES: 10
-   ```
-
-### IP Restrictions (Optional)
-
-To restrict access by IP range:
-```
-Keyword: ALLOWED_IP_RANGES
-Value: 10.0.0.0/8,192.168.0.0/16,172.16.0.0/12
-```
-
-### Rate Limiting
-
-```
-Keyword: RATE_LIMIT_REQUESTS
-Value: 10
-
-Keyword: RATE_LIMIT_WINDOW_MINUTES
-Value: 5
-```
-
-## Scheduled Agent Configuration
-
-### UnlockProfiles Agent
-
-**Purpose:** Automatically unlocks profiles after lockout duration expires.
-
-**Schedule:**
-- Recommended: Every 15 minutes
-- Minimum: Every 5 minutes
-- Maximum: Every 60 minutes
-
-**Configuration:**
-1. Open agent in Designer
-2. Set schedule: "More than once a day"
-3. Set interval based on LOCKOUT_DURATION_MINUTES
-4. Enable agent
-
-### CleanupLogs Agent (Optional)
-
-**Purpose:** Removes old log entries based on retention policy.
-
-**Schedule:**
-- Recommended: Daily at 2:00 AM
-- Run during low-usage hours
-
-## Performance Tuning
-
-### For Large Organizations (>10,000 users)
-
-1. **Optimize views** in backend database:
-   - Ensure proper indexing on email field
-   - Consider full-text indexing for searches
-
-2. **Cache configuration:**
-   ```
-   Keyword: CACHE_CONFIG_SECONDS
-   Value: 300
-   ```
-
-3. **Connection pooling:**
-   - Domino handles this automatically
-   - Ensure adequate server memory
-
-4. **Database maintenance:**
-   - Schedule compact weekly
-   - Update full-text index daily
-
-### Recommended Server Settings
-
-In notes.ini:
-```
-NSF_BUFFER_POOL_SIZE_MB=512
-SERVER_MAXSESSIONS=1000
-HTTP_MAXCONNECTIONSCACHE=100
-```
-
-## Multi-Server Deployment
-
-For clustered or multi-server environments:
-
-1. **Replicate backend database** to all HTTP servers
-2. **Use cluster replication** for real-time sync
-3. **Configure same keywords** on all replicas
-4. **Point ID_VAULT_SERVER** to cluster name or primary
-
-### Cluster Configuration
-
-```
-Keyword: CLUSTER_ENABLED
-Value: Yes
-
-Keyword: CLUSTER_SERVERS
-Value: CN=Web01/O=Acme,CN=Web02/O=Acme
-```
-
-## Backup and Recovery
-
-### Recommended Backup Schedule
-
-| Database | Frequency | Retention |
-|----------|-----------|-----------|
-| resetpwd.nsf | Weekly | 4 weeks |
-| ForgotPasswordData.nsf | Daily | 30 days |
-| Logs | Weekly | 90 days |
-
-### Recovery Procedures
-
-1. **Profile data loss:** Restore from backup; users may need to re-register
-2. **Configuration loss:** Re-enter keywords from documentation
-3. **Complete loss:** Restore both databases and re-sign
+Consider implementing a cleanup agent to remove old audit logs based on your retention policy.
