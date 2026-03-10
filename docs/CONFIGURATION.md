@@ -61,7 +61,7 @@ Create these configuration documents first:
 | COMPANY_NAME | `Your Company` | UI | Organization name |
 | SUPPORT_EMAIL | `helpdesk@company.com` | UI | Support email address |
 | SUPPORT_PHONE | `1-800-555-1234` | UI | Support phone number |
-| LOGO_URL | `logo.svg` | UI | Path to logo image |
+| LOGO_URL | `logo.png` | UI | Path to logo image |
 
 ---
 
@@ -102,7 +102,7 @@ Answers are hashed using Domino's `@Password` function for secure storage. The a
 |-----|-------------|---------|
 | APP_TITLE | Page title and header | `Password Reset Portal` |
 | COMPANY_NAME | Footer company name | `Acme Corporation` |
-| LOGO_URL | Logo image path | `logo.svg` |
+| LOGO_URL | Logo image path | `logo.png` |
 
 ### Support Information
 
@@ -116,7 +116,7 @@ Answers are hashed using Domino's `@Password` function for secure storage. The a
 The UI can be customized by editing the file resources:
 
 1. **styles.css** - Colors, fonts, layout
-2. **logo.svg** - Company logo
+2. **logo.png** - Company logo
 3. **config.js** - Default messages and settings
 
 ---
@@ -249,7 +249,7 @@ If a configuration key is not found, agents use these defaults:
 | COMPANY_NAME | Your Company |
 | SUPPORT_EMAIL | helpdesk@company.com |
 | SUPPORT_PHONE | 1-800-555-1234 |
-| LOGO_URL | images/logo.svg |
+| LOGO_URL | images/logo.png |
 | MAX_FAILED_ATTEMPTS | 5 |
 | LOCKOUT_DURATION_MINUTES | 30 |
 | SESSION_TIMEOUT_MINUTES | 15 |

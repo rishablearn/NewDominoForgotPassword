@@ -68,7 +68,7 @@ This guide provides step-by-step instructions for deploying the HCL Domino Self-
 │  │  WEB CONTENT (File Resources)                            │    │
 │  │  • index.html      • css/styles.css                      │    │
 │  │  • reset.html      • js/api.js, config.js, etc.          │    │
-│  │  • register.html   • images/*.svg                         │    │
+│  │  • register.html   • images/*.png                         │    │
 │  │  • profile.html                                           │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
@@ -235,10 +235,10 @@ For each HTML file, right-click → **Import File Resource**:
 
 | Source File | Name in Domino |
 |-------------|----------------|
-| `nsf/WebContent/images/logo.svg` | `logo.svg` |
-| `nsf/WebContent/images/key-icon.svg` | `key-icon.svg` |
-| `nsf/WebContent/images/shield-icon.svg` | `shield-icon.svg` |
-| `nsf/WebContent/images/edit-icon.svg` | `edit-icon.svg` |
+| `nsf/WebContent/images/logo.png` | `logo.png` |
+| `nsf/WebContent/images/key-icon.png` | `key-icon.png` |
+| `nsf/WebContent/images/shield-icon.png` | `shield-icon.png` |
+| `nsf/WebContent/images/edit-icon.png` | `edit-icon.png` |
 
 ### Step 2.3: Update File Resource Paths
 
@@ -254,7 +254,7 @@ After importing, you may need to update the HTML files to reference the correct 
 <link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
 <script src="api.js"></script>
-<img src="logo.svg">
+<img src="logo.png">
 ```
 
 ### Step 2.4: Set Default Home Page
