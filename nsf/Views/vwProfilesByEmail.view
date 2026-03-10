@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+View: vwProfilesByEmail
+Purpose: Look up UserProfile documents by email address (primary lookup view)
+-->
+<view name="vwProfilesByEmail" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <code event="selection">
+        <formula>SELECT Form = "UserProfile"</formula>
+    </code>
+    
+    <!-- Column 1: Email (sorted, for lookup) -->
+    <column sorted="ascending" categorized="false" resort="none" width="30">
+        <columnheader title="Email"/>
+        <code event="value">
+            <formula>@LowerCase(Email)</formula>
+        </code>
+    </column>
+    
+    <!-- Column 2: UserName -->
+    <column sorted="none" width="30">
+        <columnheader title="User Name"/>
+        <code event="value">
+            <formula>UserName</formula>
+        </code>
+    </column>
+    
+    <!-- Column 3: IsLocked -->
+    <column sorted="none" width="10">
+        <columnheader title="Locked"/>
+        <code event="value">
+            <formula>IsLocked</formula>
+        </code>
+    </column>
+    
+    <!-- Column 4: Created Date -->
+    <column sorted="none" width="15">
+        <columnheader title="Created"/>
+        <code event="value">
+            <formula>CreatedDate</formula>
+        </code>
+    </column>
+</view>

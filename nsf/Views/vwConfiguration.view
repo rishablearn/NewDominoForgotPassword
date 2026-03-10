@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+View: vwConfiguration
+Purpose: Look up configuration settings by key
+-->
+<view name="vwConfiguration" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <code event="selection">
+        <formula>SELECT Form = "Configuration"</formula>
+    </code>
+    
+    <!-- Column 1: Key (sorted, for lookup) -->
+    <column sorted="ascending" categorized="false" resort="none" width="25">
+        <columnheader title="Key"/>
+        <code event="value">
+            <formula>Key</formula>
+        </code>
+    </column>
+    
+    <!-- Column 2: Value -->
+    <column sorted="none" width="30">
+        <columnheader title="Value"/>
+        <code event="value">
+            <formula>Value</formula>
+        </code>
+    </column>
+    
+    <!-- Column 3: Category -->
+    <column sorted="none" width="15">
+        <columnheader title="Category"/>
+        <code event="value">
+            <formula>Category</formula>
+        </code>
+    </column>
+    
+    <!-- Column 4: Description -->
+    <column sorted="none" width="40">
+        <columnheader title="Description"/>
+        <code event="value">
+            <formula>Description</formula>
+        </code>
+    </column>
+</view>

@@ -1,0 +1,95 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: GetSecurityQuestions
+' Purpose: Return list of available security questions
+' Returns JSON array of questions
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    Dim jsonResponse As String
+    Dim questions As String
+    Dim isFirst As Boolean
+    
+    Set db = session.CurrentDatabase
+    
+    ' Try to get questions from Configuration view
+    Set view = db.GetView("vwSecurityQuestions")
+    
+    questions = ""
+    isFirst = True
+    
+    If Not view Is Nothing Then
+        Set doc = view.GetFirstDocument
+        Do While Not doc Is Nothing
+            If doc.GetItemValue("Active")(0) = "Yes" Then
+                If Not isFirst Then
+                    questions = questions & ","
+                End If
+                questions = questions & """" & EscapeJson(doc.GetItemValue("Question")(0)) & """"
+                isFirst = False
+            End If
+            Set doc = view.GetNextDocument(doc)
+        Loop
+    End If
+    
+    ' If no questions found, return defaults
+    If questions = "" Then
+        questions = GetDefaultQuestions()
+    End If
+    
+    ' Build JSON response
+    jsonResponse = |{"success": true, "questions": [| & questions & |]}|
+    
+    ' Output response
+    Print "Content-Type: application/json"
+    Print ""
+    Print jsonResponse
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GetDefaultQuestions() As String
+    ' Return default security questions
+    Dim q As String
+    q = |"What is your mother's maiden name?",|
+    q = q & |"What was the name of your first pet?",|
+    q = q & |"In what city were you born?",|
+    q = q & |"What is your favorite movie?",|
+    q = q & |"What was the make of your first car?",|
+    q = q & |"What is your favorite book?",|
+    q = q & |"What was your childhood nickname?",|
+    q = q & |"What street did you grow up on?",|
+    q = q & |"What is your favorite sports team?",|
+    q = q & |"What was the name of your elementary school?",|
+    q = q & |"What is your favorite food?",|
+    q = q & |"What was your first job?"|
+    GetDefaultQuestions = q
+End Function
+
+Function EscapeJson(inputStr As String) As String
+    Dim result As String
+    result = inputStr
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

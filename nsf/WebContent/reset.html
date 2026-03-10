@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - Self-Service Portal</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="images/logo.svg" alt="Logo" class="logo">
+                    <h1 class="app-title">Self-Service Password Reset</h1>
+                </div>
+                <nav class="main-nav">
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="reset.html" class="nav-link active">Reset Password</a>
+                    <a href="register.html" class="nav-link">Register</a>
+                    <a href="profile.html" class="nav-link">Update Profile</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="wizard-container">
+                <h2>Password Reset Wizard</h2>
+                
+                <!-- Progress Indicator -->
+                <div class="wizard-progress">
+                    <div class="progress-step active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">Email</span>
+                    </div>
+                    <div class="progress-step" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">Verify</span>
+                    </div>
+                    <div class="progress-step" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">Password</span>
+                    </div>
+                    <div class="progress-step" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">Complete</span>
+                    </div>
+                </div>
+
+                <!-- Alert Container -->
+                <div id="alertContainer" class="alert-container"></div>
+
+                <!-- Step 1: Email Entry -->
+                <div class="wizard-step" id="step1">
+                    <h3>Step 1: Enter Your Email Address</h3>
+                    <p>Enter the email address associated with your account.</p>
+                    <form id="emailForm" class="wizard-form">
+                        <div class="form-group">
+                            <label for="email">Email Address</label>
+                            <input type="email" id="email" name="email" required 
+                                   placeholder="your.email@company.com"
+                                   autocomplete="email">
+                        </div>
+                        <div class="form-actions">
+                            <a href="index.html" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Continue</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 2: Security Questions -->
+                <div class="wizard-step hidden" id="step2">
+                    <h3>Step 2: Answer Security Questions</h3>
+                    <p>Please answer your security questions to verify your identity.</p>
+                    <form id="questionsForm" class="wizard-form">
+                        <div class="form-group">
+                            <label id="question1Label">Question 1</label>
+                            <input type="text" id="answer1" name="answer1" required 
+                                   placeholder="Your answer" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label id="question2Label">Question 2</label>
+                            <input type="text" id="answer2" name="answer2" required 
+                                   placeholder="Your answer" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label id="question3Label">Question 3</label>
+                            <input type="text" id="answer3" name="answer3" required 
+                                   placeholder="Your answer" autocomplete="off">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="resetWizard.goToStep(1)">Back</button>
+                            <button type="submit" class="btn btn-primary">Verify</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 3: New Password -->
+                <div class="wizard-step hidden" id="step3">
+                    <h3>Step 3: Create New Password</h3>
+                    <p>Enter your new password. It must meet the complexity requirements.</p>
+                    <form id="passwordForm" class="wizard-form">
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" id="newPassword" name="newPassword" required 
+                                   placeholder="Enter new password" autocomplete="new-password">
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="strength-bar"></div>
+                                <span class="strength-text"></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm Password</label>
+                            <input type="password" id="confirmPassword" name="confirmPassword" required 
+                                   placeholder="Confirm new password" autocomplete="new-password">
+                        </div>
+                        <div class="password-requirements">
+                            <p>Password must contain:</p>
+                            <ul>
+                                <li id="req-length">At least 8 characters</li>
+                                <li id="req-upper">One uppercase letter</li>
+                                <li id="req-lower">One lowercase letter</li>
+                                <li id="req-number">One number</li>
+                                <li id="req-special">One special character</li>
+                            </ul>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="resetWizard.goToStep(2)">Back</button>
+                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 4: Confirmation -->
+                <div class="wizard-step hidden" id="step4">
+                    <h3>Password Reset Complete!</h3>
+                    <div class="success-message">
+                        <div class="success-icon">✓</div>
+                        <p>Your password has been successfully reset.</p>
+                        <div class="reset-summary">
+                            <div class="summary-item">
+                                <span class="summary-label">HTTP Password:</span>
+                                <span class="summary-value" id="httpStatus">Updated</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Notes ID (ID Vault):</span>
+                                <span class="summary-value" id="vaultStatus">Updated</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <a href="index.html" class="btn btn-primary">Return to Home</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; <span id="currentYear"></span> Your Company. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/reset-wizard.js"></script>
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>

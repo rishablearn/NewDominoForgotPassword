@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Form: Configuration
+Purpose: Stores application configuration key-value pairs
+-->
+<form name="Configuration" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <item name="Form"><text>Configuration</text></item>
+    
+    <field name="Key" type="text" kind="editable">
+        <description>Configuration key name</description>
+    </field>
+    
+    <field name="Value" type="text" kind="editable">
+        <description>Configuration value</description>
+    </field>
+    
+    <field name="Description" type="text" kind="editable">
+        <description>Description of this setting</description>
+    </field>
+    
+    <field name="Category" type="text" kind="editable">
+        <description>Category: Security, UI, Server, etc.</description>
+    </field>
+</form>

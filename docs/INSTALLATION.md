@@ -3,20 +3,27 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Version Compatibility](#version-compatibility)
-3. [Prerequisites](#prerequisites)
-4. [Phase 1: Database Creation](#phase-1-database-creation)
-5. [Phase 2: Security Configuration](#phase-2-security-configuration)
-6. [Phase 3: Application Setup](#phase-3-application-setup)
-7. [Phase 4: Testing & Verification](#phase-4-testing--verification)
-8. [Troubleshooting](#troubleshooting)
-9. [Quick Reference](#quick-reference)
+2. [Architecture](#architecture)
+3. [Version Compatibility](#version-compatibility)
+4. [Prerequisites](#prerequisites)
+5. [Phase 1: Database Creation](#phase-1-database-creation)
+6. [Phase 2: Security Configuration](#phase-2-security-configuration)
+7. [Phase 3: Application Setup](#phase-3-application-setup)
+8. [Phase 4: Testing & Verification](#phase-4-testing--verification)
+9. [Troubleshooting](#troubleshooting)
+10. [Quick Reference](#quick-reference)
 
 ---
 
 ## Overview
 
-This guide provides step-by-step instructions for deploying the HCL Domino Self-Service Password Reset application. The installation is organized into four phases:
+This guide provides step-by-step instructions for deploying the HCL Domino Self-Service Password Reset application.
+
+**Key Architecture Features:**
+- **Pure HTML/JavaScript UI** - No XPages required, works on all Domino versions
+- **LotusScript Agents** - All backend logic via Domino Agents
+- **Single NSF Database** - Simplified deployment and maintenance
+- **ID Vault Integration** - Reset both HTTP and Notes Client passwords
 
 | Phase | Description | Time Estimate |
 |-------|-------------|---------------|
@@ -26,6 +33,49 @@ This guide provides step-by-step instructions for deploying the HCL Domino Self-
 | Phase 4 | Testing & Verification | 30-60 minutes |
 
 **Total estimated time: 1.5 - 3 hours**
+
+---
+
+## Architecture
+
+The application uses a clean separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Browser (HTML/CSS/JavaScript)                              │
+│  - index.html, reset.html, register.html, profile.html      │
+│  - JavaScript calls agents via ?OpenAgent URLs              │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ HTTP/HTTPS
+┌─────────────────────────▼───────────────────────────────────┐
+│  Domino NSF Database (PwdReset.nsf)                         │
+│  ┌─────────────────┐  ┌─────────────────────────────────┐   │
+│  │ Web Content     │  │ LotusScript Agents              │   │
+│  │ (HTML/JS/CSS)   │  │ - CheckAuthentication           │   │
+│  │                 │  │ - LookupProfile                 │   │
+│  │                 │  │ - VerifyAnswers                 │   │
+│  │                 │  │ - ResetPassword                 │   │
+│  └─────────────────┘  └─────────────────────────────────┘   │
+│  ┌─────────────────┐  ┌─────────────────────────────────┐   │
+│  │ Forms           │  │ Views                           │   │
+│  │ - UserProfile   │  │ - vwProfilesByEmail             │   │
+│  │ - AuditLog      │  │ - vwConfiguration               │   │
+│  │ - Configuration │  │ - vwLockedAccounts              │   │
+│  └─────────────────┘  └─────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Agent Endpoints:**
+| Agent | Purpose | Authentication |
+|-------|---------|----------------|
+| `CheckAuthentication?OpenAgent` | Verify user login status | None |
+| `GetSecurityQuestions?OpenAgent` | Get available questions | None |
+| `LookupProfile?OpenAgent` | Find profile by email | None |
+| `RegisterProfile?OpenAgent` | Create new profile | Required |
+| `UpdateProfile?OpenAgent` | Update existing profile | Required |
+| `VerifyAnswers?OpenAgent` | Verify security answers | None |
+| `ResetPassword?OpenAgent` | Reset HTTP + ID Vault password | Token |
+| `GetConfiguration?OpenAgent` | Get UI configuration | None |
 
 ---
 

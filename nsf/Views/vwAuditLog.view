@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+View: vwAuditLog
+Purpose: Display audit log entries sorted by timestamp
+-->
+<view name="vwAuditLog" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <code event="selection">
+        <formula>SELECT Form = "AuditLog"</formula>
+    </code>
+    
+    <!-- Column 1: Timestamp (sorted descending, newest first) -->
+    <column sorted="descending" categorized="false" resort="none" width="15">
+        <columnheader title="Timestamp"/>
+        <code event="value">
+            <formula>Timestamp</formula>
+        </code>
+    </column>
+    
+    <!-- Column 2: Event Type -->
+    <column sorted="none" width="15">
+        <columnheader title="Event"/>
+        <code event="value">
+            <formula>EventType</formula>
+        </code>
+    </column>
+    
+    <!-- Column 3: User -->
+    <column sorted="none" width="25">
+        <columnheader title="User"/>
+        <code event="value">
+            <formula>UserName</formula>
+        </code>
+    </column>
+    
+    <!-- Column 4: Email -->
+    <column sorted="none" width="20">
+        <columnheader title="Email"/>
+        <code event="value">
+            <formula>Email</formula>
+        </code>
+    </column>
+    
+    <!-- Column 5: Details -->
+    <column sorted="none" width="40">
+        <columnheader title="Details"/>
+        <code event="value">
+            <formula>Details</formula>
+        </code>
+    </column>
+</view>

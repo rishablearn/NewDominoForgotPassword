@@ -1,0 +1,110 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: ClearExpiredLockouts
+' Purpose: Scheduled agent to automatically unlock accounts after lockout period
+' Run: Every 15 minutes
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    Dim nextDoc As NotesDocument
+    Dim lockoutMinutes As Integer
+    Dim unlockCount As Integer
+    
+    Set db = session.CurrentDatabase
+    
+    ' Get lockout duration from configuration
+    lockoutMinutes = CInt(GetConfigValue(db, "LOCKOUT_DURATION_MINUTES", 30))
+    
+    ' Get locked accounts view
+    Set view = db.GetView("vwLockedAccounts")
+    If view Is Nothing Then
+        Exit Sub
+    End If
+    
+    unlockCount = 0
+    Set doc = view.GetFirstDocument
+    
+    Do While Not doc Is Nothing
+        Set nextDoc = view.GetNextDocument(doc)
+        
+        ' Check if lockout has expired
+        Dim lockoutTime As Variant
+        lockoutTime = doc.GetItemValue("LockoutTime")(0)
+        
+        If IsDate(lockoutTime) Then
+            If DateDiff("n", lockoutTime, Now) >= lockoutMinutes Then
+                ' Unlock the account
+                doc.ReplaceItemValue "IsLocked", "No"
+                doc.ReplaceItemValue "FailedAttempts", 0
+                Call doc.Save(True, False)
+                
+                ' Log the unlock
+                Call LogAuditEvent(db, doc.GetItemValue("UserName")(0), _
+                    doc.GetItemValue("Email")(0), "AUTO_UNLOCK", _
+                    "Account automatically unlocked after " & lockoutMinutes & " minutes")
+                
+                unlockCount = unlockCount + 1
+            End If
+        End If
+        
+        Set doc = nextDoc
+    Loop
+    
+    ' Log agent run if any accounts were unlocked
+    If unlockCount > 0 Then
+        Call LogAuditEvent(db, "System", "system@agent", "AGENT_RUN", _
+            "ClearExpiredLockouts: Unlocked " & unlockCount & " account(s)")
+    End If
+    
+    Exit Sub
+    
+ErrorHandler:
+    ' Log error
+    Call LogAuditEvent(db, "System", "system@agent", "AGENT_ERROR", _
+        "ClearExpiredLockouts error: " & Error$)
+End Sub
+
+Function GetConfigValue(db As NotesDatabase, key As String, defaultValue As Variant) As Variant
+    On Error Resume Next
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    
+    Set view = db.GetView("vwConfiguration")
+    If view Is Nothing Then
+        GetConfigValue = defaultValue
+        Exit Function
+    End If
+    
+    Set doc = view.GetDocumentByKey(key, True)
+    If doc Is Nothing Then
+        GetConfigValue = defaultValue
+    Else
+        GetConfigValue = doc.GetItemValue("Value")(0)
+        If GetConfigValue = "" Then GetConfigValue = defaultValue
+    End If
+End Function
+
+Sub LogAuditEvent(db As NotesDatabase, userName As String, email As String, eventType As String, details As String)
+    On Error Resume Next
+    Dim doc As NotesDocument
+    Set doc = db.CreateDocument
+    doc.Form = "AuditLog"
+    doc.UserName = userName
+    doc.Email = email
+    doc.EventType = eventType
+    doc.Details = details
+    doc.Timestamp = Now
+    Call doc.Save(True, False)
+End Sub

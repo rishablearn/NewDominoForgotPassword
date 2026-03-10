@@ -1,0 +1,172 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: LookupProfile
+' Purpose: Look up user security profile by email address
+' Returns JSON with profile info (questions only, not answers)
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim contextDoc As NotesDocument
+    Dim view As NotesView
+    Dim profileDoc As NotesDocument
+    Dim email As String
+    Dim jsonResponse As String
+    
+    Set db = session.CurrentDatabase
+    Set contextDoc = session.DocumentContext
+    
+    ' Get email from query string or POST data
+    email = GetParameter(contextDoc, "email")
+    
+    If email = "" Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Email is required"}|
+        Exit Sub
+    End If
+    
+    ' Look up profile by email
+    Set view = db.GetView("vwProfilesByEmail")
+    If view Is Nothing Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Profile view not found"}|
+        Exit Sub
+    End If
+    
+    Set profileDoc = view.GetDocumentByKey(LCase(email), True)
+    
+    If profileDoc Is Nothing Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Profile not found"}|
+        Exit Sub
+    End If
+    
+    ' Check if account is locked
+    If profileDoc.GetItemValue("IsLocked")(0) = "Yes" Then
+        ' Check if lockout has expired
+        Dim lockoutTime As Variant
+        Dim lockoutMinutes As Integer
+        lockoutTime = profileDoc.GetItemValue("LockoutTime")(0)
+        lockoutMinutes = GetConfigValue(db, "LOCKOUT_DURATION_MINUTES", 30)
+        
+        If IsDate(lockoutTime) Then
+            If DateDiff("n", lockoutTime, Now) < lockoutMinutes Then
+                Print "Content-Type: application/json"
+                Print ""
+                Print |{"success": false, "locked": true, "error": "Account is locked"}|
+                Exit Sub
+            Else
+                ' Auto-unlock expired lockout
+                profileDoc.ReplaceItemValue "IsLocked", "No"
+                profileDoc.ReplaceItemValue "FailedAttempts", 0
+                Call profileDoc.Save(True, False)
+            End If
+        End If
+    End If
+    
+    ' Build response with questions (not answers)
+    Dim q1 As String, q2 As String, q3 As String
+    q1 = profileDoc.GetItemValue("Question1")(0)
+    q2 = profileDoc.GetItemValue("Question2")(0)
+    q3 = profileDoc.GetItemValue("Question3")(0)
+    
+    jsonResponse = |{"success": true, "profile": {|
+    jsonResponse = jsonResponse & |"questions": ["|
+    jsonResponse = jsonResponse & EscapeJson(q1) & |", "|
+    jsonResponse = jsonResponse & EscapeJson(q2) & |", "|
+    jsonResponse = jsonResponse & EscapeJson(q3) & |"]|
+    jsonResponse = jsonResponse & |}|}|
+    
+    Print "Content-Type: application/json"
+    Print ""
+    Print jsonResponse
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GetParameter(doc As NotesDocument, paramName As String) As String
+    On Error Resume Next
+    Dim value As String
+    
+    ' Try query string first
+    value = doc.GetItemValue("Query_String_Decoded")(0)
+    If InStr(value, paramName & "=") > 0 Then
+        Dim parts() As String
+        parts = Split(value, "&")
+        Dim i As Integer
+        For i = 0 To UBound(parts)
+            If InStr(parts(i), paramName & "=") = 1 Then
+                GetParameter = Mid(parts(i), Len(paramName) + 2)
+                Exit Function
+            End If
+        Next
+    End If
+    
+    ' Try POST data (request content)
+    value = doc.GetItemValue("Request_Content")(0)
+    If value <> "" Then
+        ' Parse JSON
+        If InStr(value, """" & paramName & """") > 0 Then
+            Dim startPos As Integer, endPos As Integer
+            startPos = InStr(value, """" & paramName & """")
+            startPos = InStr(startPos, value, ":") + 1
+            ' Find the value
+            Do While Mid(value, startPos, 1) = " " Or Mid(value, startPos, 1) = """"
+                startPos = startPos + 1
+            Loop
+            endPos = startPos
+            Do While Mid(value, endPos, 1) <> """" And Mid(value, endPos, 1) <> "," And Mid(value, endPos, 1) <> "}"
+                endPos = endPos + 1
+            Loop
+            GetParameter = Mid(value, startPos, endPos - startPos)
+        End If
+    End If
+End Function
+
+Function GetConfigValue(db As NotesDatabase, key As String, defaultValue As Variant) As Variant
+    On Error Resume Next
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    
+    Set view = db.GetView("vwConfiguration")
+    If view Is Nothing Then
+        GetConfigValue = defaultValue
+        Exit Function
+    End If
+    
+    Set doc = view.GetDocumentByKey(key, True)
+    If doc Is Nothing Then
+        GetConfigValue = defaultValue
+    Else
+        GetConfigValue = doc.GetItemValue("Value")(0)
+        If GetConfigValue = "" Then GetConfigValue = defaultValue
+    End If
+End Function
+
+Function EscapeJson(inputStr As String) As String
+    Dim result As String
+    result = inputStr
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

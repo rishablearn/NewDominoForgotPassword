@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Form: AuditLog
+Purpose: Records all security-related events for audit trail
+-->
+<form name="AuditLog" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <item name="Form"><text>AuditLog</text></item>
+    
+    <field name="Timestamp" type="datetime" kind="editable">
+        <description>Event timestamp</description>
+    </field>
+    
+    <field name="UserName" type="text" kind="editable">
+        <description>User associated with the event</description>
+    </field>
+    
+    <field name="Email" type="text" kind="editable">
+        <description>User email address</description>
+    </field>
+    
+    <field name="EventType" type="text" kind="editable">
+        <description>Type: REGISTRATION, PROFILE_UPDATE, VERIFY_SUCCESS, VERIFY_FAILED, PASSWORD_RESET, ACCOUNT_LOCKED, AUTO_UNLOCK</description>
+    </field>
+    
+    <field name="Details" type="text" kind="editable">
+        <description>Event details/description</description>
+    </field>
+    
+    <field name="IPAddress" type="text" kind="editable">
+        <description>Client IP address (if available)</description>
+    </field>
+</form>

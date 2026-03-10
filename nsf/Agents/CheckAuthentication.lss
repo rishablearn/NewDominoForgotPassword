@@ -1,0 +1,110 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: CheckAuthentication
+' Purpose: Check if the current user is authenticated and return user info
+' Returns JSON response with authentication status
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim doc As NotesDocument
+    Dim userName As String
+    Dim email As String
+    Dim isAnonymous As Boolean
+    Dim jsonResponse As String
+    
+    ' Get document context for web agent
+    Set doc = session.DocumentContext
+    
+    ' Get current user
+    userName = session.EffectiveUserName
+    isAnonymous = (userName = "Anonymous" Or userName = "")
+    
+    ' Get user email from Domino Directory if authenticated
+    If Not isAnonymous Then
+        email = GetUserEmail(session, userName)
+    End If
+    
+    ' Build JSON response
+    If isAnonymous Then
+        jsonResponse = |{"success": true, "anonymous": true}|
+    Else
+        jsonResponse = |{"success": true, "anonymous": false, "userName": "| & EscapeJson(userName) & |", "email": "| & EscapeJson(email) & |"}|
+    End If
+    
+    ' Output response
+    Print "Content-Type: application/json"
+    Print ""
+    Print jsonResponse
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GetUserEmail(session As NotesSession, userName As String) As String
+    On Error GoTo ErrHandler
+    
+    Dim nab As NotesDatabase
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    Dim email As String
+    
+    ' Open Domino Directory
+    Set nab = session.GetDatabase(session.CurrentDatabase.Server, "names.nsf", False)
+    If nab Is Nothing Then
+        GetUserEmail = ""
+        Exit Function
+    End If
+    
+    ' Look up user in People view
+    Set view = nab.GetView("($Users)")
+    If view Is Nothing Then
+        GetUserEmail = ""
+        Exit Function
+    End If
+    
+    ' Find user document
+    Set doc = view.GetDocumentByKey(userName, True)
+    If doc Is Nothing Then
+        ' Try with abbreviated name
+        Dim nn As New NotesName(userName)
+        Set doc = view.GetDocumentByKey(nn.Abbreviated, True)
+    End If
+    
+    If Not doc Is Nothing Then
+        email = doc.GetItemValue("InternetAddress")(0)
+        If email = "" Then
+            email = doc.GetItemValue("MailAddress")(0)
+        End If
+    End If
+    
+    GetUserEmail = email
+    Exit Function
+    
+ErrHandler:
+    GetUserEmail = ""
+End Function
+
+Function EscapeJson(inputStr As String) As String
+    ' Escape special characters for JSON
+    Dim result As String
+    result = inputStr
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

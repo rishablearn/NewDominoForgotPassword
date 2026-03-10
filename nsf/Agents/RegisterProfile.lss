@@ -1,0 +1,211 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: RegisterProfile
+' Purpose: Register new user security profile with questions and hashed answers
+' Requires authenticated user
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim contextDoc As NotesDocument
+    Dim view As NotesView
+    Dim profileDoc As NotesDocument
+    Dim userName As String
+    Dim email As String
+    Dim jsonData As String
+    
+    Set db = session.CurrentDatabase
+    Set contextDoc = session.DocumentContext
+    
+    ' Check authentication
+    userName = session.EffectiveUserName
+    If userName = "Anonymous" Or userName = "" Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Authentication required"}|
+        Exit Sub
+    End If
+    
+    ' Get user email
+    email = GetUserEmail(session, userName)
+    If email = "" Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Unable to determine user email"}|
+        Exit Sub
+    End If
+    
+    ' Check for existing profile
+    Set view = db.GetView("vwProfilesByEmail")
+    Set profileDoc = view.GetDocumentByKey(LCase(email), True)
+    
+    If Not profileDoc Is Nothing Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Profile already exists"}|
+        Exit Sub
+    End If
+    
+    ' Get POST data
+    jsonData = contextDoc.GetItemValue("Request_Content")(0)
+    
+    Dim q1 As String, q2 As String, q3 As String
+    Dim a1 As String, a2 As String, a3 As String
+    
+    q1 = ParseJsonValue(jsonData, "question1")
+    q2 = ParseJsonValue(jsonData, "question2")
+    q3 = ParseJsonValue(jsonData, "question3")
+    a1 = ParseJsonValue(jsonData, "answer1")
+    a2 = ParseJsonValue(jsonData, "answer2")
+    a3 = ParseJsonValue(jsonData, "answer3")
+    
+    ' Validate required fields
+    If q1 = "" Or q2 = "" Or q3 = "" Or a1 = "" Or a2 = "" Or a3 = "" Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "All questions and answers are required"}|
+        Exit Sub
+    End If
+    
+    ' Create new profile document
+    Set profileDoc = db.CreateDocument
+    profileDoc.Form = "UserProfile"
+    profileDoc.UserName = userName
+    profileDoc.Email = LCase(email)
+    profileDoc.Question1 = q1
+    profileDoc.Question2 = q2
+    profileDoc.Question3 = q3
+    profileDoc.Answer1Hash = HashAnswer(LCase(Trim(a1)))
+    profileDoc.Answer2Hash = HashAnswer(LCase(Trim(a2)))
+    profileDoc.Answer3Hash = HashAnswer(LCase(Trim(a3)))
+    profileDoc.IsLocked = "No"
+    profileDoc.FailedAttempts = 0
+    profileDoc.CreatedDate = Now
+    profileDoc.ModifiedDate = Now
+    
+    Call profileDoc.Save(True, False)
+    
+    ' Log the registration
+    Call LogAuditEvent(db, userName, email, "REGISTRATION", "Profile registered successfully")
+    
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": true, "message": "Profile registered successfully"}|
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GetUserEmail(session As NotesSession, userName As String) As String
+    On Error GoTo ErrHandler
+    
+    Dim nab As NotesDatabase
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    
+    Set nab = session.GetDatabase(session.CurrentDatabase.Server, "names.nsf", False)
+    If nab Is Nothing Then Exit Function
+    
+    Set view = nab.GetView("($Users)")
+    If view Is Nothing Then Exit Function
+    
+    Set doc = view.GetDocumentByKey(userName, True)
+    If doc Is Nothing Then
+        Dim nn As New NotesName(userName)
+        Set doc = view.GetDocumentByKey(nn.Abbreviated, True)
+    End If
+    
+    If Not doc Is Nothing Then
+        GetUserEmail = doc.GetItemValue("InternetAddress")(0)
+        If GetUserEmail = "" Then
+            GetUserEmail = doc.GetItemValue("MailAddress")(0)
+        End If
+    End If
+    Exit Function
+    
+ErrHandler:
+    GetUserEmail = ""
+End Function
+
+Function HashAnswer(answer As String) As String
+    ' Create MD5 hash of answer for storage
+    ' In production, use bcrypt or stronger hashing
+    Dim session As New NotesSession
+    Dim stream As NotesStream
+    Dim hash As String
+    
+    ' Simple hash using Domino's Evaluate function
+    Dim result As Variant
+    result = Evaluate(|@Password("| & answer & |")|)
+    If IsArray(result) Then
+        HashAnswer = result(0)
+    Else
+        HashAnswer = result
+    End If
+End Function
+
+Function ParseJsonValue(jsonStr As String, key As String) As String
+    On Error Resume Next
+    Dim startPos As Integer, endPos As Integer
+    Dim searchKey As String
+    
+    searchKey = """" & key & """"
+    startPos = InStr(jsonStr, searchKey)
+    If startPos = 0 Then Exit Function
+    
+    startPos = InStr(startPos, jsonStr, ":") + 1
+    
+    ' Skip whitespace and opening quote
+    Do While Mid(jsonStr, startPos, 1) = " " Or Mid(jsonStr, startPos, 1) = """"
+        startPos = startPos + 1
+    Loop
+    
+    ' Find end of value
+    endPos = startPos
+    Do While endPos <= Len(jsonStr)
+        Dim c As String
+        c = Mid(jsonStr, endPos, 1)
+        If c = """" Or c = "," Or c = "}" Then Exit Do
+        endPos = endPos + 1
+    Loop
+    
+    ParseJsonValue = Mid(jsonStr, startPos, endPos - startPos)
+End Function
+
+Sub LogAuditEvent(db As NotesDatabase, userName As String, email As String, eventType As String, details As String)
+    On Error Resume Next
+    Dim doc As NotesDocument
+    Set doc = db.CreateDocument
+    doc.Form = "AuditLog"
+    doc.UserName = userName
+    doc.Email = email
+    doc.EventType = eventType
+    doc.Details = details
+    doc.Timestamp = Now
+    doc.IPAddress = "" ' Can be enhanced to capture IP
+    Call doc.Save(True, False)
+End Sub
+
+Function EscapeJson(inputStr As String) As String
+    Dim result As String
+    result = inputStr
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

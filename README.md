@@ -2,15 +2,21 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Domino](https://img.shields.io/badge/HCL%20Domino-10.x%20%7C%2011.x%20%7C%2012.x%20%7C%2014.x-green.svg)](https://www.hcltechsw.com/domino)
-[![XPages](https://img.shields.io/badge/XPages-Enabled-orange.svg)](https://www.hcltechsw.com/domino)
+[![Architecture](https://img.shields.io/badge/Architecture-HTML%2FJS%20%2B%20Agents-orange.svg)](docs/INSTALLATION.md)
 
 A comprehensive self-service password reset solution for HCL Domino environments. Reduces IT support calls by allowing users to securely reset both HTTP (Webmail) and Notes Client passwords independently.
+
+Based on HCL's [PwdResetSample.nsf](https://help.hcl-software.com/domino/10.0.1/admin/conf_settingupthesampleselfserviceapplicationtoallowi_t.html) pattern and [OpenNTF Forgot Password](https://www.openntf.org/main.nsf/project.xsp?r=project/Forgot%20Password%20Functionality%20for%20Domino) best practices.
 
 ![Password Reset Portal](docs/images/screenshot-placeholder.png)
 
 ## 🎯 Overview
 
-This application provides a modern, secure, and user-friendly password reset experience for HCL Domino users. It integrates seamlessly with ID Vault for Notes Client password management.
+This application provides a modern, secure, and user-friendly password reset experience for HCL Domino users. It features a **clean separation of concerns**:
+
+- **UI Layer**: Pure HTML + JavaScript (no XPages dependency)
+- **Backend Logic**: LotusScript Agents
+- **Data Storage**: Single Domino NSF Database
 
 ### Architecture
 
@@ -21,18 +27,18 @@ This application provides a modern, secure, and user-friendly password reset exp
 └─────────────────────┬───────────────────────────────────────────┘
                       │ HTTPS
 ┌─────────────────────▼───────────────────────────────────────────┐
-│              Front-End Database (resetpwd.nsf)                   │
+│                   HTML/JavaScript UI Layer                       │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   XPages    │  │  Custom     │  │   Script Libraries      │  │
-│  │   (UI)      │  │  Controls   │  │   (Business Logic)      │  │
+│  │   HTML      │  │  CSS        │  │   JavaScript            │  │
+│  │   Pages     │  │  Styles     │  │   (API Client)          │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 └─────────────────────┬───────────────────────────────────────────┘
-                      │
+                      │ Agent URLs (?OpenAgent)
 ┌─────────────────────▼───────────────────────────────────────────┐
-│           Back-End Database (ForgotPasswordData.nsf)             │
+│              Domino Database (PwdReset.nsf)                      │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   Forms     │  │   Views     │  │   Scheduled Agents      │  │
-│  │   (Data)    │  │  (Lookup)   │  │   (Maintenance)         │  │
+│  │ LotusScript │  │   Forms     │  │   Views                 │  │
+│  │   Agents    │  │   (Data)    │  │   (Lookup)              │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
@@ -91,20 +97,44 @@ open docs/INSTALLATION.md
 
 ```
 NewDominoForgotPassword/
-├── FrontEnd-resetpwd.nsf/          # Front-End UI Components
-│   ├── XPages/                      # Main application pages
-│   │   ├── xpHome.xsp              # Landing page
-│   │   ├── xpRegister.xsp          # Security question setup
-│   │   ├── xpResetWizard.xsp       # Password reset wizard
-│   │   └── xpUpdateProfile.xsp     # Update questions
-│   ├── CustomControls/              # Reusable components
-│   ├── ScriptLibraries/             # Server-side JavaScript
-│   └── Resources/                   # CSS, JS, Images
-│
-├── BackEnd-ForgotPasswordData.nsf/ # Back-End Data Storage
+├── nsf/                             # Domino NSF Database Content
+│   ├── WebContent/                  # HTML/JS/CSS UI Layer
+│   │   ├── index.html              # Landing page
+│   │   ├── reset.html              # Password reset wizard
+│   │   ├── register.html           # Security question registration
+│   │   ├── profile.html            # Update profile
+│   │   ├── css/styles.css          # Modern CSS styling
+│   │   ├── js/                     # JavaScript modules
+│   │   │   ├── config.js           # Application configuration
+│   │   │   ├── api.js              # Domino Agent API client
+│   │   │   ├── reset-wizard.js     # Password reset logic
+│   │   │   ├── register.js         # Registration logic
+│   │   │   └── profile.js          # Profile update logic
+│   │   └── images/                 # SVG icons
+│   │
+│   ├── Agents/                      # LotusScript Agents (Backend)
+│   │   ├── CheckAuthentication.lss # User auth verification
+│   │   ├── GetSecurityQuestions.lss# Get available questions
+│   │   ├── LookupProfile.lss       # Find user profile by email
+│   │   ├── RegisterProfile.lss     # Register new profile
+│   │   ├── UpdateProfile.lss       # Update existing profile
+│   │   ├── VerifyAnswers.lss       # Verify security answers
+│   │   ├── ResetPassword.lss       # Reset HTTP + ID Vault password
+│   │   ├── GetConfiguration.lss    # Get app configuration
+│   │   └── ClearExpiredLockouts.lss# Scheduled: Auto-unlock
+│   │
 │   ├── Forms/                       # Document schemas
-│   ├── Views/                       # Data lookups
-│   └── Agents/                      # Scheduled tasks
+│   │   ├── UserProfile.form        # User security profile
+│   │   ├── AuditLog.form           # Audit trail
+│   │   ├── Configuration.form      # App settings
+│   │   └── SecurityQuestion.form   # Available questions
+│   │
+│   └── Views/                       # Data lookups
+│       ├── vwProfilesByEmail.view  # Lookup by email
+│       ├── vwLockedAccounts.view   # Locked accounts
+│       ├── vwConfiguration.view    # Config lookup
+│       ├── vwSecurityQuestions.view# Questions list
+│       └── vwAuditLog.view         # Audit log
 │
 ├── deploy/                          # Deployment helpers
 │   ├── scripts/                     # Deployment scripts

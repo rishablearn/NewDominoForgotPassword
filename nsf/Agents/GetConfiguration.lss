@@ -1,0 +1,81 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: GetConfiguration
+' Purpose: Return application configuration settings for the UI
+' Returns JSON with configurable UI settings
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    Dim jsonResponse As String
+    
+    Set db = session.CurrentDatabase
+    
+    ' Build JSON with configuration values
+    jsonResponse = |{"success": true|
+    
+    ' Get each configuration value
+    jsonResponse = jsonResponse & |, "appTitle": "| & EscapeJson(GetConfigValue(db, "APP_TITLE", "Self-Service Password Reset")) & |"|
+    jsonResponse = jsonResponse & |, "companyName": "| & EscapeJson(GetConfigValue(db, "COMPANY_NAME", "Your Company")) & |"|
+    jsonResponse = jsonResponse & |, "supportEmail": "| & EscapeJson(GetConfigValue(db, "SUPPORT_EMAIL", "helpdesk@company.com")) & |"|
+    jsonResponse = jsonResponse & |, "supportPhone": "| & EscapeJson(GetConfigValue(db, "SUPPORT_PHONE", "1-800-555-1234")) & |"|
+    jsonResponse = jsonResponse & |, "logoUrl": "| & EscapeJson(GetConfigValue(db, "LOGO_URL", "images/logo.svg")) & |"|
+    jsonResponse = jsonResponse & |, "maxFailedAttempts": | & GetConfigValue(db, "MAX_FAILED_ATTEMPTS", 5)
+    jsonResponse = jsonResponse & |, "sessionTimeoutMinutes": | & GetConfigValue(db, "SESSION_TIMEOUT_MINUTES", 15)
+    jsonResponse = jsonResponse & |, "minPasswordLength": | & GetConfigValue(db, "MIN_PASSWORD_LENGTH", 8)
+    
+    jsonResponse = jsonResponse & |}}|
+    
+    Print "Content-Type: application/json"
+    Print ""
+    Print jsonResponse
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GetConfigValue(db As NotesDatabase, key As String, defaultValue As Variant) As Variant
+    On Error Resume Next
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    
+    Set view = db.GetView("vwConfiguration")
+    If view Is Nothing Then
+        GetConfigValue = defaultValue
+        Exit Function
+    End If
+    
+    Set doc = view.GetDocumentByKey(key, True)
+    If doc Is Nothing Then
+        GetConfigValue = defaultValue
+    Else
+        GetConfigValue = doc.GetItemValue("Value")(0)
+        If GetConfigValue = "" Then GetConfigValue = defaultValue
+    End If
+End Function
+
+Function EscapeJson(inputStr As String) As String
+    Dim result As String
+    result = CStr(inputStr)
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

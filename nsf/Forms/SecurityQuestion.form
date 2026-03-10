@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Form: SecurityQuestion
+Purpose: Stores available security questions for user selection
+-->
+<form name="SecurityQuestion" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <item name="Form"><text>SecurityQuestion</text></item>
+    
+    <field name="Question" type="text" kind="editable">
+        <description>The security question text</description>
+    </field>
+    
+    <field name="Category" type="text" kind="editable">
+        <description>Category: Personal, Family, Education, Work, Entertainment</description>
+    </field>
+    
+    <field name="Active" type="text" kind="editable">
+        <description>Yes/No - Whether this question is active</description>
+    </field>
+    
+    <field name="SortOrder" type="number" kind="editable">
+        <description>Display order for the question</description>
+    </field>
+</form>

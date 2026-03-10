@@ -1,0 +1,285 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+' Agent: VerifyAnswers
+' Purpose: Verify security question answers and return verification token
+' Handles lockout after multiple failed attempts
+
+'++LotusScript Development Environment:2:2:Initialize:17:10
+Sub Initialize
+    On Error GoTo ErrorHandler
+    
+    Dim session As New NotesSession
+    Dim db As NotesDatabase
+    Dim contextDoc As NotesDocument
+    Dim view As NotesView
+    Dim profileDoc As NotesDocument
+    Dim email As String
+    Dim jsonData As String
+    Dim maxAttempts As Integer
+    
+    Set db = session.CurrentDatabase
+    Set contextDoc = session.DocumentContext
+    
+    ' Get POST data
+    jsonData = contextDoc.GetItemValue("Request_Content")(0)
+    email = ParseJsonValue(jsonData, "email")
+    
+    If email = "" Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Email is required"}|
+        Exit Sub
+    End If
+    
+    ' Get max failed attempts from config
+    maxAttempts = CInt(GetConfigValue(db, "MAX_FAILED_ATTEMPTS", 5))
+    
+    ' Look up profile
+    Set view = db.GetView("vwProfilesByEmail")
+    Set profileDoc = view.GetDocumentByKey(LCase(email), True)
+    
+    If profileDoc Is Nothing Then
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": false, "error": "Profile not found"}|
+        Exit Sub
+    End If
+    
+    ' Check if account is locked
+    If profileDoc.GetItemValue("IsLocked")(0) = "Yes" Then
+        Dim lockoutTime As Variant
+        Dim lockoutMinutes As Integer
+        lockoutTime = profileDoc.GetItemValue("LockoutTime")(0)
+        lockoutMinutes = CInt(GetConfigValue(db, "LOCKOUT_DURATION_MINUTES", 30))
+        
+        If IsDate(lockoutTime) Then
+            If DateDiff("n", lockoutTime, Now) < lockoutMinutes Then
+                Print "Content-Type: application/json"
+                Print ""
+                Print |{"success": false, "locked": true, "error": "Account is locked. Please try again later."}|
+                Exit Sub
+            Else
+                ' Auto-unlock expired lockout
+                profileDoc.ReplaceItemValue "IsLocked", "No"
+                profileDoc.ReplaceItemValue "FailedAttempts", 0
+            End If
+        End If
+    End If
+    
+    ' Parse answers from JSON
+    Dim answers As String
+    Dim a1 As String, a2 As String, a3 As String
+    
+    answers = ParseJsonArray(jsonData, "answers")
+    a1 = GetArrayElement(answers, 0)
+    a2 = GetArrayElement(answers, 1)
+    a3 = GetArrayElement(answers, 2)
+    
+    ' Hash the provided answers
+    Dim hash1 As String, hash2 As String, hash3 As String
+    hash1 = HashAnswer(LCase(Trim(a1)))
+    hash2 = HashAnswer(LCase(Trim(a2)))
+    hash3 = HashAnswer(LCase(Trim(a3)))
+    
+    ' Compare with stored hashes
+    Dim stored1 As String, stored2 As String, stored3 As String
+    stored1 = profileDoc.GetItemValue("Answer1Hash")(0)
+    stored2 = profileDoc.GetItemValue("Answer2Hash")(0)
+    stored3 = profileDoc.GetItemValue("Answer3Hash")(0)
+    
+    If hash1 = stored1 And hash2 = stored2 And hash3 = stored3 Then
+        ' Answers correct - generate verification token
+        Dim token As String
+        token = GenerateToken(email)
+        
+        ' Store token in profile for verification during password reset
+        profileDoc.ReplaceItemValue "VerificationToken", token
+        profileDoc.ReplaceItemValue "TokenExpiry", DateAdd("n", 15, Now) ' 15 minute expiry
+        profileDoc.ReplaceItemValue "FailedAttempts", 0
+        Call profileDoc.Save(True, False)
+        
+        ' Log successful verification
+        Call LogAuditEvent(db, profileDoc.GetItemValue("UserName")(0), email, "VERIFY_SUCCESS", "Security answers verified")
+        
+        Print "Content-Type: application/json"
+        Print ""
+        Print |{"success": true, "token": "| & token & |"}|
+    Else
+        ' Answers incorrect - increment failed attempts
+        Dim failedAttempts As Integer
+        failedAttempts = profileDoc.GetItemValue("FailedAttempts")(0) + 1
+        profileDoc.ReplaceItemValue "FailedAttempts", failedAttempts
+        
+        If failedAttempts >= maxAttempts Then
+            ' Lock the account
+            profileDoc.ReplaceItemValue "IsLocked", "Yes"
+            profileDoc.ReplaceItemValue "LockoutTime", Now
+            Call profileDoc.Save(True, False)
+            
+            Call LogAuditEvent(db, profileDoc.GetItemValue("UserName")(0), email, "ACCOUNT_LOCKED", "Account locked after " & failedAttempts & " failed attempts")
+            
+            Print "Content-Type: application/json"
+            Print ""
+            Print |{"success": false, "locked": true, "error": "Account locked due to too many failed attempts"}|
+        Else
+            Call profileDoc.Save(True, False)
+            
+            Call LogAuditEvent(db, profileDoc.GetItemValue("UserName")(0), email, "VERIFY_FAILED", "Failed attempt " & failedAttempts & " of " & maxAttempts)
+            
+            Print "Content-Type: application/json"
+            Print ""
+            Print |{"success": false, "error": "Incorrect answers", "attemptsRemaining": | & (maxAttempts - failedAttempts) & |}|
+        End If
+    End If
+    
+    Exit Sub
+    
+ErrorHandler:
+    Print "Content-Type: application/json"
+    Print ""
+    Print |{"success": false, "error": "| & EscapeJson(Error$) & |"}|
+End Sub
+
+Function GenerateToken(email As String) As String
+    ' Generate a unique verification token
+    Dim token As String
+    Dim i As Integer
+    
+    Randomize Timer
+    token = ""
+    
+    ' Create a random alphanumeric token
+    For i = 1 To 32
+        Dim charCode As Integer
+        charCode = Int(Rnd * 62)
+        If charCode < 10 Then
+            token = token & Chr(48 + charCode) ' 0-9
+        ElseIf charCode < 36 Then
+            token = token & Chr(65 + charCode - 10) ' A-Z
+        Else
+            token = token & Chr(97 + charCode - 36) ' a-z
+        End If
+    Next
+    
+    ' Add timestamp component for uniqueness
+    token = token & Hex(CLng(Timer * 1000))
+    
+    GenerateToken = token
+End Function
+
+Function HashAnswer(answer As String) As String
+    Dim result As Variant
+    result = Evaluate(|@Password("| & answer & |")|)
+    If IsArray(result) Then
+        HashAnswer = result(0)
+    Else
+        HashAnswer = result
+    End If
+End Function
+
+Function ParseJsonValue(jsonStr As String, key As String) As String
+    On Error Resume Next
+    Dim startPos As Integer, endPos As Integer
+    Dim searchKey As String
+    
+    searchKey = """" & key & """"
+    startPos = InStr(jsonStr, searchKey)
+    If startPos = 0 Then Exit Function
+    
+    startPos = InStr(startPos, jsonStr, ":") + 1
+    
+    Do While Mid(jsonStr, startPos, 1) = " " Or Mid(jsonStr, startPos, 1) = """"
+        startPos = startPos + 1
+    Loop
+    
+    endPos = startPos
+    Do While endPos <= Len(jsonStr)
+        Dim c As String
+        c = Mid(jsonStr, endPos, 1)
+        If c = """" Or c = "," Or c = "}" Then Exit Do
+        endPos = endPos + 1
+    Loop
+    
+    ParseJsonValue = Mid(jsonStr, startPos, endPos - startPos)
+End Function
+
+Function ParseJsonArray(jsonStr As String, key As String) As String
+    On Error Resume Next
+    Dim startPos As Integer, endPos As Integer
+    Dim searchKey As String
+    
+    searchKey = """" & key & """"
+    startPos = InStr(jsonStr, searchKey)
+    If startPos = 0 Then Exit Function
+    
+    startPos = InStr(startPos, jsonStr, "[")
+    If startPos = 0 Then Exit Function
+    
+    endPos = InStr(startPos, jsonStr, "]")
+    If endPos = 0 Then Exit Function
+    
+    ParseJsonArray = Mid(jsonStr, startPos + 1, endPos - startPos - 1)
+End Function
+
+Function GetArrayElement(arrayStr As String, index As Integer) As String
+    On Error Resume Next
+    Dim elements() As String
+    Dim cleanStr As String
+    
+    cleanStr = Replace(arrayStr, """", "")
+    elements = Split(cleanStr, ",")
+    
+    If index <= UBound(elements) Then
+        GetArrayElement = Trim(elements(index))
+    End If
+End Function
+
+Function GetConfigValue(db As NotesDatabase, key As String, defaultValue As Variant) As Variant
+    On Error Resume Next
+    Dim view As NotesView
+    Dim doc As NotesDocument
+    
+    Set view = db.GetView("vwConfiguration")
+    If view Is Nothing Then
+        GetConfigValue = defaultValue
+        Exit Function
+    End If
+    
+    Set doc = view.GetDocumentByKey(key, True)
+    If doc Is Nothing Then
+        GetConfigValue = defaultValue
+    Else
+        GetConfigValue = doc.GetItemValue("Value")(0)
+        If GetConfigValue = "" Then GetConfigValue = defaultValue
+    End If
+End Function
+
+Sub LogAuditEvent(db As NotesDatabase, userName As String, email As String, eventType As String, details As String)
+    On Error Resume Next
+    Dim doc As NotesDocument
+    Set doc = db.CreateDocument
+    doc.Form = "AuditLog"
+    doc.UserName = userName
+    doc.Email = email
+    doc.EventType = eventType
+    doc.Details = details
+    doc.Timestamp = Now
+    Call doc.Save(True, False)
+End Sub
+
+Function EscapeJson(inputStr As String) As String
+    Dim result As String
+    result = inputStr
+    result = Replace(result, "\", "\\")
+    result = Replace(result, """", "\""")
+    result = Replace(result, Chr(10), "\n")
+    result = Replace(result, Chr(13), "\r")
+    result = Replace(result, Chr(9), "\t")
+    EscapeJson = result
+End Function

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+View: vwLockedAccounts
+Purpose: Display locked accounts for scheduled agent processing
+-->
+<view name="vwLockedAccounts" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <code event="selection">
+        <formula>SELECT Form = "UserProfile" &amp; IsLocked = "Yes"</formula>
+    </code>
+    
+    <!-- Column 1: LockoutTime (sorted for processing oldest first) -->
+    <column sorted="ascending" categorized="false" resort="none" width="15">
+        <columnheader title="Lockout Time"/>
+        <code event="value">
+            <formula>LockoutTime</formula>
+        </code>
+    </column>
+    
+    <!-- Column 2: Email -->
+    <column sorted="none" width="30">
+        <columnheader title="Email"/>
+        <code event="value">
+            <formula>Email</formula>
+        </code>
+    </column>
+    
+    <!-- Column 3: UserName -->
+    <column sorted="none" width="30">
+        <columnheader title="User Name"/>
+        <code event="value">
+            <formula>UserName</formula>
+        </code>
+    </column>
+    
+    <!-- Column 4: Failed Attempts -->
+    <column sorted="none" width="10">
+        <columnheader title="Attempts"/>
+        <code event="value">
+            <formula>FailedAttempts</formula>
+        </code>
+    </column>
+</view>

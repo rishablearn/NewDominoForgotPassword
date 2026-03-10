@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Form: UserProfile
+Purpose: Stores user security profile with questions and hashed answers
+-->
+<form name="UserProfile" xmlns="http://www.lotus.com/dxl">
+    <noteinfo>
+        <created><datetime>20240101T000000,00+00</datetime></created>
+        <modified><datetime>20240101T000000,00+00</datetime></modified>
+    </noteinfo>
+    
+    <item name="Form"><text>UserProfile</text></item>
+    
+    <!-- User Identification -->
+    <field name="UserName" type="text" kind="editable">
+        <description>Canonical Domino user name</description>
+    </field>
+    
+    <field name="Email" type="text" kind="editable">
+        <description>User email address (lowercase, used as lookup key)</description>
+    </field>
+    
+    <!-- Security Questions -->
+    <field name="Question1" type="text" kind="editable">
+        <description>First security question</description>
+    </field>
+    
+    <field name="Question2" type="text" kind="editable">
+        <description>Second security question</description>
+    </field>
+    
+    <field name="Question3" type="text" kind="editable">
+        <description>Third security question</description>
+    </field>
+    
+    <!-- Hashed Answers (never store plaintext) -->
+    <field name="Answer1Hash" type="text" kind="editable">
+        <description>Hashed answer for question 1</description>
+    </field>
+    
+    <field name="Answer2Hash" type="text" kind="editable">
+        <description>Hashed answer for question 2</description>
+    </field>
+    
+    <field name="Answer3Hash" type="text" kind="editable">
+        <description>Hashed answer for question 3</description>
+    </field>
+    
+    <!-- Lockout Management -->
+    <field name="IsLocked" type="text" kind="editable">
+        <description>Yes/No - Account lockout status</description>
+    </field>
+    
+    <field name="FailedAttempts" type="number" kind="editable">
+        <description>Number of consecutive failed verification attempts</description>
+    </field>
+    
+    <field name="LockoutTime" type="datetime" kind="editable">
+        <description>Timestamp when account was locked</description>
+    </field>
+    
+    <!-- Verification Token (for password reset flow) -->
+    <field name="VerificationToken" type="text" kind="editable">
+        <description>Temporary token for password reset verification</description>
+    </field>
+    
+    <field name="TokenExpiry" type="datetime" kind="editable">
+        <description>Expiration time for verification token</description>
+    </field>
+    
+    <!-- Audit Fields -->
+    <field name="CreatedDate" type="datetime" kind="editable">
+        <description>Profile creation timestamp</description>
+    </field>
+    
+    <field name="ModifiedDate" type="datetime" kind="editable">
+        <description>Last modification timestamp</description>
+    </field>
+    
+    <field name="LastPasswordReset" type="datetime" kind="editable">
+        <description>Last successful password reset timestamp</description>
+    </field>
+</form>
